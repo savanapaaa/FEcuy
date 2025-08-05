@@ -1,0 +1,627 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import {
+  ArrowLeft,
+  FileText,
+  Calendar,
+  User,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Eye,
+  Download,
+  Search,
+  RefreshCw,
+  TrendingUp,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { useRouter } from "next/navigation"
+import ContentReviewDialog from "@/components/content-review-dialog"
+import { useToast } from "@/hooks/use-toast"
+import { useMobile } from "@/hooks/use-mobile"
+import { getReviews } from "@/lib/api-client"
+
+// Define interfaces
+interface FileData {
+  name: string
+  size: number
+  type: string
+  lastModified: number
+  base64?: string
+  url?: string
+}
+
+interface ContentItem {
+  id: string
+  nama: string
+  jenisKonten: string
+  status?: "pending" | "approved" | "rejected"
+  tanggalDiproses?: string
+  catatan?: string
+  alasanPenolakan?: string
+  diprosesoleh?: string
+}
+
+interface Submission {
+  id: number
+  noComtab: string
+  tema: string
+  judul: string
+  tanggalSubmit: Date | undefined
+  isConfirmed?: boolean
+  contentItems?: ContentItem[]
+  buktiMengetahui?: FileData | string
+  dokumenPendukung?: (FileData | string)[]
+  workflowStage?: "submitted" | "review" | "validation" | "completed"
+  lastModified?: Date
+  tanggalReview?: string
+}
+
+// Helper function to determine workflow stage
+const getWorkflowStage = (submission: Submission) => {
+  if (!submission.isConfirmed) return "submitted"
+  const contentItems = submission.contentItems || []
+  if (contentItems.length === 0) return "review"
+  const allReviewed = contentItems.every(
+    (item: ContentItem) => item.status === "approved" || item.status === "rejected",
+  )
+  if (!allReviewed) return "review"
+  const hasApprovedItems = contentItems.some((item: ContentItem) => item.status === "approved")
+  if (!hasApprovedItems) return "completed"
+  // If all items are reviewed and there are approved items, move to validation
+  return "validation"
+}
+
+export default function ReviewPage() {
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [showStats, setShowStats] = useState(false)
+  const { toast } = useToast()
+  const isMobile = useMobile()
+  const router = useRouter()
+
+  // Load submissions from localStorage - only those that need review
+  useEffect(() => {
+    const loadSubmissions = async () => {
+      try {
+        setIsLoading(true)
+        console.log("Loading reviews...")
+
+        // Try to load from API first
+        const response = await getReviews()
+        console.log("Reviews response:", response)
+
+        if (response.success && response.data) {
+          // Transform API data to match our interface
+          const reviewItems = response.data.map((submission: any) => {
+            const reviewItem: Submission = {
+              id: submission.id,
+              noComtab: submission.noComtab || `COM-${submission.id}`,
+              tema: submission.tema || "Tidak ada tema",
+              judul: submission.judul || "Tidak ada judul",
+              tanggalSubmit: submission.tanggalSubmit ? new Date(submission.tanggalSubmit) : new Date(),
+              isConfirmed: true,
+              contentItems: submission.contentItems || [],
+              buktiMengetahui: submission.buktiMengetahui,
+              dokumenPendukung: submission.dokumenPendukung || [],
+              workflowStage: getWorkflowStage(submission),
+              lastModified: submission.lastModified ? new Date(submission.lastModified) : new Date(),
+              tanggalReview: submission.tanggalReview,
+            }
+            return reviewItem
+          })
+
+          // Filter submissions that need review
+          const reviewSubmissions = reviewItems.filter((sub: Submission) => {
+            if (!sub.isConfirmed) return false
+            if (sub.workflowStage && sub.workflowStage !== "review") return false
+            const contentItems = sub.contentItems || []
+            if (contentItems.length === 0) return true
+            const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
+            return hasPendingItems
+          })
+
+          setSubmissions(reviewSubmissions)
+        } else {
+          throw new Error("API not available")
+        }
+      } catch (error) {
+        console.error("Error loading from API, falling back to localStorage:", error)
+
+        // Fallback to localStorage
+        if (typeof window !== "undefined") {
+          const stored = localStorage.getItem("submissions")
+          if (stored) {
+            const parsedSubmissions = JSON.parse(stored)
+            // Filter submissions that need review:
+            // 1. Must be confirmed (submitted)
+            // 2. Must have workflowStage as "review" OR no workflowStage set (new submissions)
+            // 3. Must have content items that are pending review OR no content items yet
+            const reviewSubmissions = parsedSubmissions.filter((sub: Submission) => {
+              // Must be confirmed/submitted
+              if (!sub.isConfirmed) return false
+              // Check workflow stage - should be "review" or undefined (new submissions)
+              if (sub.workflowStage && sub.workflowStage !== "review") return false
+              // If no content items, it needs review setup
+              const contentItems = sub.contentItems || []
+              if (contentItems.length === 0) return true
+              // Check if any content items are still pending review
+              const hasPendingItems = contentItems.some(
+                (item: ContentItem) => !item.status || item.status === "pending",
+              )
+              return hasPendingItems
+            })
+            setSubmissions(reviewSubmissions)
+          }
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    setTimeout(() => loadSubmissions(), 800) // Simulate loading
+  }, [])
+
+  // Filter submissions based on status and search
+  const filteredSubmissions = submissions.filter((submission) => {
+    const matchesSearch =
+      submission.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      submission.noComtab.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      submission.tema.toLowerCase().includes(searchTerm.toLowerCase())
+
+    if (filterStatus === "all") return matchesSearch
+
+    const contentItems = submission.contentItems || []
+    const hasStatus = contentItems.some((item) => item.status === filterStatus)
+    const hasPending = contentItems.some((item) => !item.status || item.status === "pending")
+
+    if (filterStatus === "pending") {
+      return matchesSearch && hasPending
+    }
+
+    return matchesSearch && hasStatus
+  })
+
+  // Calculate statistics
+  const totalSubmissions = submissions.length
+  const pendingReview = submissions.filter((sub) => {
+    const contentItems = sub.contentItems || []
+    return contentItems.some((item) => !item.status || item.status === "pending")
+  }).length
+
+  const handleReviewSubmission = (submission: Submission) => {
+    setSelectedSubmission(submission)
+    setIsDialogOpen(true)
+  }
+
+  // Called by ContentReviewDialog when the review is finished
+  const handleUpdate = (updatedSubmissions: Submission[]) => {
+    // Update workflow stages and add review timestamp for all submissions
+    const submissionsWithStages = updatedSubmissions.map((sub) => {
+      const workflowStage = getWorkflowStage(sub)
+      // Add review timestamp if all content items have been reviewed
+      const contentItems = sub.contentItems || []
+      const allReviewed = contentItems.every(
+        (item: ContentItem) => item.status === "approved" || item.status === "rejected",
+      )
+      const updatedSub = {
+        ...sub,
+        workflowStage,
+        // Add review timestamp if this submission was just fully reviewed
+        tanggalReview: allReviewed && !sub.tanggalReview ? new Date().toISOString() : sub.tanggalReview,
+      }
+      return updatedSub
+    })
+
+    // Persist to localStorage
+    localStorage.setItem("submissions", JSON.stringify(submissionsWithStages))
+
+    // Filter only submissions that still need review
+    const reviewSubmissions = submissionsWithStages.filter((sub: Submission) => {
+      if (!sub.isConfirmed) return false
+      if (sub.workflowStage && sub.workflowStage !== "review") return false
+      const contentItems = sub.contentItems || []
+      if (contentItems.length === 0) return true
+      // Check if any content items are still pending review
+      const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
+      return hasPendingItems
+    })
+
+    setSubmissions(reviewSubmissions)
+
+    // Show success message
+    toast({
+      title: "Review berhasil disimpan",
+      description: "Dokumen yang sudah direview akan pindah ke tahap validasi",
+      variant: "default",
+    })
+  }
+
+  // Keep dialog & selection in-sync
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsDialogOpen(open)
+    if (!open) setSelectedSubmission(null)
+  }
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case "approved":
+        return <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">Disetujui</Badge>
+      case "rejected":
+        return <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">Ditolak</Badge>
+      default:
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">Pending</Badge>
+    }
+  }
+
+  const getSubmissionStatus = (submission: Submission) => {
+    const contentItems = submission.contentItems || []
+    const hasPending = contentItems.some((item) => !item.status || item.status === "pending")
+    const hasApproved = contentItems.some((item) => item.status === "approved")
+    const hasRejected = contentItems.some((item) => item.status === "rejected")
+
+    if (hasPending) return "pending"
+    if (hasApproved && !hasRejected) return "approved"
+    if (hasRejected) return "rejected"
+    return "pending"
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50 flex items-center justify-center p-4">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
+          <div className="border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4 w-12 h-12"></div>
+          <p className="font-semibold text-blue-700 text-base">Memuat Data Review...</p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-blue-50">
+      {/* Header */}
+      <motion.header
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0 z-50"
+      >
+        <div className={`mx-auto px-4 py-4 ${isMobile ? "max-w-full" : "max-w-4xl"}`}>
+          <div className="flex items-center justify-between">
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center space-x-3 flex-1"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/dashboard/admin")}
+                className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 p-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <motion.div
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg w-10 h-10"
+              >
+                <FileText className="text-white h-5 w-5" />
+              </motion.div>
+              <div className="flex-1">
+                <h1 className="font-bold text-blue-900 text-xl">Review Dokumen</h1>
+                <p className="text-blue-600 text-sm">Kelola dan review dokumen yang masuk</p>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="flex items-center space-x-2"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowStats(!showStats)}
+                className="text-blue-600 hover:bg-blue-50 p-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="border-blue-200 text-blue-600 hover:bg-blue-50 p-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </motion.div>
+          </div>
+          {/* Search Bar */}
+          <div className="mt-3 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-400 h-4 w-4" />
+            <Input
+              placeholder="Cari dokumen..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 border-blue-200 focus:ring-blue-500 focus:border-blue-500 bg-white/80 text-sm"
+            />
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Statistics */}
+      <AnimatePresence>
+        {showStats && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className={`space-y-4 ${isMobile ? "px-4 py-3 bg-white/50" : "max-w-4xl mx-auto px-4 py-6"}`}>
+              <div className="grid gap-4 grid-cols-2">
+                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-lg">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-600 mb-1">Dokumen Perlu Review</p>
+                        <motion.p
+                          key={totalSubmissions}
+                          initial={{ scale: 1.2, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="font-bold text-blue-900 text-2xl"
+                        >
+                          {totalSubmissions}
+                        </motion.p>
+                      </div>
+                      <motion.div
+                        whileHover={{ rotate: 15 }}
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg w-12 h-12"
+                      >
+                        <FileText className="h-6 w-6 text-white" />
+                      </motion.div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 shadow-lg">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-orange-600 mb-1">Konten Pending</p>
+                        <motion.p
+                          key={pendingReview}
+                          initial={{ scale: 1.2, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="font-bold text-orange-900 text-2xl"
+                        >
+                          {submissions.reduce((total, sub) => {
+                            const pendingItems =
+                              sub.contentItems?.filter((item) => !item.status || item.status === "pending") || []
+                            return total + pendingItems.length
+                          }, 0)}
+                        </motion.p>
+                      </div>
+                      <motion.div
+                        whileHover={{ rotate: 15 }}
+                        className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg w-12 h-12"
+                      >
+                        <Clock className="h-6 w-6 text-white" />
+                      </motion.div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <main className={`space-y-4 pb-20 ${isMobile ? "px-4 py-4" : "max-w-4xl mx-auto px-4 py-6"}`}>
+        {/* Results Info */}
+        <div className="flex items-center justify-between text-sm text-blue-600">
+          <span>Menampilkan {filteredSubmissions.length} dokumen</span>
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSearchTerm("")}
+              className="text-blue-600 hover:bg-blue-50 p-1"
+            >
+              <XCircle className="h-3 w-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+
+        {/* Submissions List */}
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="space-y-3"
+        >
+          <AnimatePresence>
+            {filteredSubmissions.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="text-center py-12"
+              >
+                <Card className="bg-white/80 backdrop-blur-sm border-blue-200 shadow-lg">
+                  <CardContent className="p-8">
+                    <CheckCircle className="text-green-400 mx-auto mb-4 h-12 w-12" />
+                    <h3 className="font-semibold text-blue-900 mb-2 text-lg">
+                      {searchTerm || filterStatus !== "all"
+                        ? "Tidak ada dokumen yang sesuai"
+                        : "Semua dokumen sudah direview!"}
+                    </h3>
+                    <p className="text-blue-600 text-sm">
+                      {searchTerm || filterStatus !== "all"
+                        ? "Tidak ada dokumen yang sesuai dengan filter atau pencarian."
+                        : "Tidak ada dokumen yang perlu direview saat ini. Dokumen yang sudah direview akan otomatis pindah ke tahap validasi."}
+                    </p>
+                    {!searchTerm && filterStatus === "all" && (
+                      <div className="mt-4">
+                        <Button
+                          onClick={() => router.push("/dashboard/admin")}
+                          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                        >
+                          Kembali ke Dashboard
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              filteredSubmissions.map((submission, index) => {
+                const submissionStatus = getSubmissionStatus(submission)
+                const contentItems = submission.contentItems || []
+                const pendingCount = contentItems.filter((item) => !item.status || item.status === "pending").length
+
+                return (
+                  <motion.div
+                    key={submission.id}
+                    initial={{ y: 50, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -50, opacity: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    className="group"
+                  >
+                    <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+                      <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="flex items-center space-x-3">
+                              <CardTitle className="font-bold text-gray-900 group-hover:text-blue-800 transition-colors text-base truncate">
+                                {submission.judul}
+                              </CardTitle>
+                              {getStatusBadge(submissionStatus)}
+                              {pendingCount > 0 && (
+                                <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                                  {pendingCount} Pending Review
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600 flex-wrap gap-2">
+                              <div className="flex items-center space-x-1">
+                                <FileText className="h-3 w-3" />
+                                <span className="truncate">{submission.noComtab}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <User className="h-3 w-3" />
+                                <span className="truncate">{submission.tema}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="h-3 w-3" />
+                                <span>
+                                  {submission.tanggalSubmit
+                                    ? new Date(submission.tanggalSubmit).toLocaleDateString("id-ID")
+                                    : "Tidak diketahui"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => handleReviewSubmission(submission)}
+                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 text-xs px-3 py-2"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Review
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4">
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="font-semibold text-gray-900 mb-2 text-sm">Konten Items:</h4>
+                            <div className="space-y-2">
+                              {contentItems.slice(0, 2).map((item, itemIndex) => (
+                                <div
+                                  key={itemIndex}
+                                  className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
+                                >
+                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-blue-900 text-sm truncate">{item.nama}</p>
+                                      <p className="text-sm text-blue-600 truncate">{item.jenisKonten}</p>
+                                    </div>
+                                  </div>
+                                  {getStatusBadge(item.status)}
+                                </div>
+                              ))}
+                              {contentItems.length > 2 && (
+                                <div className="text-center">
+                                  <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">
+                                    +{contentItems.length - 2} konten lainnya
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {/* Action Summary */}
+                          <div className="flex items-center text-xs text-gray-600 pt-2 border-t border-gray-100 flex-wrap gap-3">
+                            <div className="flex items-center space-x-1">
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                              <span>{contentItems.filter((item) => item.status === "approved").length} Disetujui</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <XCircle className="h-4 w-4 text-red-500" />
+                              <span>{contentItems.filter((item) => item.status === "rejected").length} Ditolak</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <Clock className="h-4 w-4 text-orange-500" />
+                              <span>{pendingCount} Pending</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {submission.buktiMengetahui && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-blue-200 text-blue-600 hover:bg-blue-50 bg-transparent"
+                              >
+                                <Download className="h-4 w-4 mr-1" />
+                                Bukti
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )
+              })
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </main>
+
+      {/* Review Dialog */}
+      {selectedSubmission && (
+        <ContentReviewDialog
+          isOpen={isDialogOpen}
+          onOpenChange={handleDialogOpenChange}
+          submission={selectedSubmission}
+          onUpdate={handleUpdate}
+          onToast={(message, type) => toast({ title: message, variant: type === "error" ? "destructive" : "default" })}
+        />
+      )}
+    </div>
+  )
+}
