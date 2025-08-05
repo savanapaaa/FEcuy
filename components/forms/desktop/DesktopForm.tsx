@@ -10,9 +10,27 @@ import StepOne from "./steps/StepOne"
 import StepTwo from "./steps/StepTwo"
 import StepThree from "./steps/StepThree"
 import StepFour from "./steps/StepFour"
+import { useState, useEffect } from "react"
 
 export default function DesktopForm() {
   const formHandler = useFormHandler()
+  const [isStepValid, setIsStepValid] = useState(false)
+
+  // Update validation whenever form data or current step changes
+  useEffect(() => {
+    const valid = formHandler.getStepValidation(formHandler.currentStep)
+    setIsStepValid(valid)
+    console.log("DesktopForm validation update:", {
+      currentStep: formHandler.currentStep,
+      isValid: valid,
+      contentItems: formHandler.formData.contentItems.length,
+      selectedContentTypes: formHandler.selectedContentTypes.length
+    })
+  }, [
+    formHandler.currentStep, 
+    formHandler.formData, 
+    formHandler.selectedContentTypes
+  ])
 
   // Add this function before the renderStep function
   const updateContentItem = (index: number, updatedValues: any) => {
@@ -44,9 +62,6 @@ export default function DesktopForm() {
         return null
     }
   }
-
-  // Get current step validation status
-  const isCurrentStepValid = formHandler.getStepValidation(formHandler.currentStep)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 py-8">
@@ -83,9 +98,12 @@ export default function DesktopForm() {
                 totalSteps={4}
                 onPrevious={formHandler.prevStep}
                 onNext={formHandler.nextStep}
-                onSubmit={formHandler.handleSubmit}
+                onSubmit={async () => {
+                  await formHandler.handleSubmit()
+                  return true
+                }}
                 isSubmitting={formHandler.isSubmitting}
-                isFormValid={isCurrentStepValid}
+                isFormValid={isStepValid}
                 isEditMode={formHandler.isEditMode}
               />
             </CardContent>

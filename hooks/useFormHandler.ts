@@ -48,7 +48,7 @@ export const useFormHandler = () => {
   const [selectedContentTypes, setSelectedContentTypes] = useState<string[]>([])
   const [contentQuantities, setContentQuantities] = useState<Record<string, number>>({})
   const [isEditMode, setIsEditMode] = useState(false)
-  const [editingSubmissionId, setEditingSubmissionId] = useState<string | null>(null)
+  const [editingSubmissionId, setEditingSubmissionId] = useState<number | null>(null)
 
   // Form data state
   const [formData, setFormData] = useState<FormData>({
@@ -70,7 +70,7 @@ export const useFormHandler = () => {
 
     if (editId) {
       setIsEditMode(true)
-      setEditingSubmissionId(editId)
+      setEditingSubmissionId(parseInt(editId, 10))
       loadEditData(editId)
     }
   }, [])
@@ -277,7 +277,9 @@ export const useFormHandler = () => {
 
       case 2:
         // Step 2: Content type selection - at least one content type selected
-        return selectedContentTypes.length > 0 && formData.contentItems.length > 0
+        const step2Valid = formData.contentItems.length > 0
+        console.log("🔍 Step 2 validation:", step2Valid, "content items:", formData.contentItems.length)
+        return step2Valid
 
       case 3:
         // Step 3: Content details - all required fields for each content item
