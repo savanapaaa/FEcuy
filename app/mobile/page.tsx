@@ -418,55 +418,6 @@ export default function MobileHomePage() {
         </Card>
       </motion.div>
 
-      {/* Quick Stats */}
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="px-4 mb-6"
-      >
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-4 text-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mx-auto mb-2"
-              >
-                <FileText className="h-5 w-5 text-white" />
-              </motion.div>
-              <p className="text-lg font-bold text-gray-800">{stats.totalSubmissions}</p>
-              <p className="text-xs text-gray-600">Total Pengajuan</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-4 text-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="w-10 h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center mx-auto mb-2"
-              >
-                <Clock className="h-5 w-5 text-white" />
-              </motion.div>
-              <p className="text-lg font-bold text-gray-800">{stats.pendingReview}</p>
-              <p className="text-xs text-gray-600">Menunggu Review</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-4 text-center">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mx-auto mb-2"
-              >
-                <CheckCircle className="h-5 w-5 text-white" />
-              </motion.div>
-              <p className="text-lg font-bold text-gray-800">{stats.completed}</p>
-              <p className="text-xs text-gray-600">Selesai</p>
-            </CardContent>
-          </Card>
-        </div>
-      </motion.div>
-
       {/* Main Navigation Buttons */}
       <div className="px-4 space-y-4">
         {/* Buat Pengajuan Konten */}
@@ -709,7 +660,7 @@ export default function MobileHomePage() {
       >
         <p className="text-xs text-gray-500 flex items-center justify-center">
           <Award className="h-3 w-3 mr-1" />
-          Sistem Pelayanan Publik Mobile v1.0
+          Platform Pengajuan Konten - Kota Batu
         </p>
       </motion.div>
     </div>

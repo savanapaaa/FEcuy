@@ -31,7 +31,6 @@ import Swal from "sweetalert2"
 export default function DesktopPage() {
   const { user, logout } = useAuth()
   const router = useRouter()
-  const [currentTime, setCurrentTime] = useState(new Date())
 
   // Enable responsive redirect
   useResponsiveRedirect({
@@ -40,14 +39,6 @@ export default function DesktopPage() {
     debounceMs: 100,
   })
 
-  // Update time every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 60000)
-
-    return () => clearInterval(timer)
-  }, [])
 
   const handleLogout = async () => {
     const result = await Swal.fire({
@@ -184,30 +175,13 @@ export default function DesktopPage() {
                     transition={{ delay: 0.3 }}
                     className="text-sm text-gray-600"
                   >
-                    Platform Layanan Publik - Diskominfo
+                    Platform Pengajuan Konten - Diskominfo Kota Batu
                   </motion.p>
                 </div>
               </div>
 
               {/* Right Section */}
               <div className="flex items-center space-x-4">
-                {/* Current Time */}
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="hidden md:flex items-center space-x-2 text-sm text-gray-600 bg-white/50 px-3 py-2 rounded-xl"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    {currentTime.toLocaleDateString("id-ID", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </span>
-                </motion.div>
 
                 {/* User Menu */}
                 <motion.div
@@ -255,9 +229,6 @@ export default function DesktopPage() {
                 {user?.fullName}!
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Kelola layanan publik sesuai dengan role dan wewenang Anda
-            </p>
           </motion.div>
 
           {/* Role-based Action Cards */}
@@ -281,7 +252,6 @@ export default function DesktopPage() {
                       <Plus className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">Form Pengajuan Konten</h3>
-                    <p className="text-gray-600 mb-6">Buat pengajuan konten baru untuk layanan publik</p>
                     <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-cyan-600 transition-colors">
                       <Zap className="h-4 w-4" />
                       <span className="font-medium">Mulai Pengajuan</span>
@@ -300,7 +270,6 @@ export default function DesktopPage() {
                       <History className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">Riwayat Pengajuan</h3>
-                    <p className="text-gray-600 mb-6">Lihat semua pengajuan yang pernah dibuat</p>
                     <div className="flex items-center justify-center space-x-2 text-green-600 group-hover:text-emerald-600 transition-colors">
                       <Target className="h-4 w-4" />
                       <span className="font-medium">Lihat Riwayat</span>
@@ -319,7 +288,6 @@ export default function DesktopPage() {
                       <Shield className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">Dashboard Admin</h3>
-                    <p className="text-gray-600 mb-6">Kelola sistem dan review pengajuan</p>
                     <div className="flex items-center justify-center space-x-2 text-orange-600 group-hover:text-red-600 transition-colors">
                       <Settings className="h-4 w-4" />
                       <span className="font-medium">Panel Admin</span>
@@ -338,7 +306,6 @@ export default function DesktopPage() {
                       <Crown className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-xl font-bold text-gray-900 mb-3">Manajemen Role</h3>
-                    <p className="text-gray-600 mb-6">Kelola user dan role sistem</p>
                     <div className="flex items-center justify-center space-x-2 text-purple-600 group-hover:text-pink-600 transition-colors">
                       <Users className="h-4 w-4" />
                       <span className="font-medium">Kelola User</span>
@@ -362,7 +329,6 @@ export default function DesktopPage() {
                       <Plus className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Form Pengajuan Konten</h3>
-                    <p className="text-gray-600 mb-6">Buat pengajuan konten baru untuk layanan publik</p>
                     <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-cyan-600 transition-colors">
                       <Zap className="h-4 w-4" />
                       <span className="font-medium">Mulai Pengajuan</span>
@@ -381,7 +347,6 @@ export default function DesktopPage() {
                       <History className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Riwayat Pengajuan</h3>
-                    <p className="text-gray-600 mb-6">Lihat semua pengajuan yang pernah dibuat</p>
                     <div className="flex items-center justify-center space-x-2 text-green-600 group-hover:text-emerald-600 transition-colors">
                       <Target className="h-4 w-4" />
                       <span className="font-medium">Lihat Riwayat</span>
@@ -405,7 +370,6 @@ export default function DesktopPage() {
                       <Eye className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Review Konten</h3>
-                    <p className="text-gray-600 mb-6">Tinjau dan evaluasi pengajuan konten</p>
                     <div className="flex items-center justify-center space-x-2 text-green-600 group-hover:text-emerald-600 transition-colors">
                       <CheckCircle className="h-4 w-4" />
                       <span className="font-medium">Mulai Review</span>
@@ -424,7 +388,6 @@ export default function DesktopPage() {
                       <History className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Riwayat</h3>
-                    <p className="text-gray-600 mb-6">Lihat riwayat review yang telah dilakukan</p>
                     <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-indigo-600 transition-colors">
                       <Target className="h-4 w-4" />
                       <span className="font-medium">Lihat Riwayat</span>
@@ -448,7 +411,6 @@ export default function DesktopPage() {
                       <Shield className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Validasi Konten</h3>
-                    <p className="text-gray-600 mb-6">Validasi dan approve konten sebelum publikasi</p>
                     <div className="flex items-center justify-center space-x-2 text-orange-600 group-hover:text-red-600 transition-colors">
                       <CheckCircle className="h-4 w-4" />
                       <span className="font-medium">Mulai Validasi</span>
@@ -467,7 +429,6 @@ export default function DesktopPage() {
                       <History className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Riwayat</h3>
-                    <p className="text-gray-600 mb-6">Lihat riwayat validasi yang telah dilakukan</p>
                     <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-indigo-600 transition-colors">
                       <Target className="h-4 w-4" />
                       <span className="font-medium">Lihat Riwayat</span>
@@ -491,7 +452,6 @@ export default function DesktopPage() {
                       <BarChart3 className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Rekap Data</h3>
-                    <p className="text-gray-600 mb-6">Lihat laporan dan statistik sistem</p>
                     <div className="flex items-center justify-center space-x-2 text-indigo-600 group-hover:text-purple-600 transition-colors">
                       <BarChart3 className="h-4 w-4" />
                       <span className="font-medium">Lihat Rekap</span>
@@ -510,7 +470,6 @@ export default function DesktopPage() {
                       <History className="h-12 w-12 text-white" />
                     </motion.div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-3">Riwayat</h3>
-                    <p className="text-gray-600 mb-6">Lihat riwayat data yang telah direkap</p>
                     <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-indigo-600 transition-colors">
                       <Target className="h-4 w-4" />
                       <span className="font-medium">Lihat Riwayat</span>
