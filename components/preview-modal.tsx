@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Download, FileText, ImageIcon, Video, Music, File, AlertTriangle, Eye, FileX } from "lucide-react"
+import { Download, FileText, ImageIcon, Video, Music, File, X, Eye, AlertTriangle } from "lucide-react"
 
 interface PreviewModalProps {
   isOpen: boolean
@@ -20,288 +18,117 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
   const [previewUrl, setPreviewUrl] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string>("")
-  const [fileInfo, setFileInfo] = useState<any>(null)
-  const blobUrlsRef = useRef<string[]>([])
 
-  // Enhanced file URL creation with better error handling
-  const createUrlFromFile = (fileData: any): string => {
-    try {
-      if (!fileData) {
-        console.warn("No file data provided")
-        return ""
-      }
+  // Simple close handler
+  const handleClose = () => {
+    onOpenChange(false)
+  }
 
-      // Handle string URLs
-      if (typeof fileData === "string") {
-        if (fileData.startsWith("http://") || fileData.startsWith("https://")) {
-          return fileData
-        }
-        if (fileData.startsWith("data:")) {
-          return fileData
-        }
-        // Handle relative paths or filenames
-        return fileData
-      }
-
-      // Handle objects with url property
-      if (fileData && typeof fileData === "object" && fileData.url) {
-        return fileData.url
-      }
-
-      // Handle objects with base64 property
-      if (fileData && typeof fileData === "object" && fileData.base64) {
-        const base64Data = fileData.base64
-        if (base64Data.startsWith("data:")) {
-          return base64Data
-        }
-        const mimeType = fileData.type || "application/octet-stream"
-        return `data:${mimeType};base64,${base64Data}`
-      }
-
-      // Handle objects with preview property
-      if (fileData && typeof fileData === "object" && fileData.preview) {
-        return fileData.preview
-      }
-
-      // Handle objects with content property
-      if (fileData && typeof fileData === "object" && fileData.content) {
-        return fileData.content
-      }
-
-      // Handle Browser File/Blob objects
-      const isBrowserFile = (obj: any): boolean => {
-        return (
-          obj &&
-          typeof obj === "object" &&
-          typeof obj.name === "string" &&
-          typeof obj.size === "number" &&
-          typeof obj.type === "string" &&
-          typeof obj.lastModified === "number" &&
-          typeof obj.slice === "function"
-        )
-      }
-
-      if (isBrowserFile(fileData) && typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
-        try {
-          const blobUrl = URL.createObjectURL(fileData)
-          blobUrlsRef.current.push(blobUrl)
-          return blobUrl
-        } catch (error) {
-          console.error("Failed to create object URL:", error)
-          return ""
-        }
-      }
-
-      // Handle serialized file objects (objects with name, size, type but no methods)
-      if (
-        fileData &&
-        typeof fileData === "object" &&
-        typeof fileData.name === "string" &&
-        typeof fileData.size === "number" &&
-        typeof fileData.type === "string"
-      ) {
-        console.warn("File object appears to be serialized, cannot create preview URL")
-        return ""
-      }
-
-      console.warn("Unknown file format, cannot create URL:", typeof fileData, fileData)
-      return ""
-    } catch (error) {
-      console.error("Error creating URL from file:", error)
-      return ""
+  // Handle backdrop click
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleClose()
     }
   }
 
-  // Enhanced MIME type detection
-  const getMimeType = (fileData: any, fallbackType?: string): string => {
-    try {
-      // Check if file object has type property
-      if (fileData && typeof fileData === "object" && fileData.type) {
-        return fileData.type
+  // Handle ESC key
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose()
       }
-
-      // Use provided type
-      if (fallbackType) {
-        return fallbackType
-      }
-
-      // Determine from filename/URL
-      const filename = typeof fileData === "string" ? fileData : fileData?.name || fileName || ""
-      const extension = filename.split(".").pop()?.toLowerCase()
-
-      const mimeTypes: Record<string, string> = {
-        // Images
-        jpg: "image/jpeg",
-        jpeg: "image/jpeg",
-        png: "image/png",
-        gif: "image/gif",
-        webp: "image/webp",
-        svg: "image/svg+xml",
-        bmp: "image/bmp",
-        ico: "image/x-icon",
-        // Videos
-        mp4: "video/mp4",
-        webm: "video/webm",
-        ogg: "video/ogg",
-        avi: "video/x-msvideo",
-        mov: "video/quicktime",
-        wmv: "video/x-ms-wmv",
-        flv: "video/x-flv",
-        // Audio
-        mp3: "audio/mpeg",
-        wav: "audio/wav",
-        ogg: "audio/ogg",
-        aac: "audio/aac",
-        flac: "audio/flac",
-        // Documents
-        pdf: "application/pdf",
-        txt: "text/plain",
-        html: "text/html",
-        css: "text/css",
-        js: "text/javascript",
-        json: "application/json",
-        xml: "application/xml",
-        // Office
-        doc: "application/msword",
-        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        xls: "application/vnd.ms-excel",
-        xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ppt: "application/vnd.ms-powerpoint",
-        pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      }
-
-      return mimeTypes[extension || ""] || "application/octet-stream"
-    } catch (error) {
-      console.error("Error determining MIME type:", error)
-      return "application/octet-stream"
     }
-  }
 
-  // Check if file type is previewable
-  const isPreviewable = (mimeType: string): boolean => {
-    return (
-      mimeType.startsWith("image/") ||
-      mimeType.startsWith("video/") ||
-      mimeType.startsWith("audio/") ||
-      mimeType === "application/pdf" ||
-      mimeType.startsWith("text/") ||
-      mimeType === "application/json"
-    )
-  }
-
-  // Get file size in readable format
-  const getFileSize = (fileData: any): string => {
-    try {
-      if (fileData && typeof fileData === "object" && typeof fileData.size === "number") {
-        const bytes = fileData.size
-        if (bytes === 0) return "0 Bytes"
-        const k = 1024
-        const sizes = ["Bytes", "KB", "MB", "GB"]
-        const i = Math.floor(Math.log(bytes) / Math.log(k))
-        return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-      }
-      return "Ukuran tidak diketahui"
-    } catch (error) {
-      return "Ukuran tidak diketahui"
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscKey)
+      document.body.style.overflow = 'hidden'
     }
-  }
 
-  // Process file URL with enhanced error handling
-  const processFileUrl = async (fileData: any, providedUrl?: string, providedType?: string) => {
-    try {
+    return () => {
+      document.removeEventListener('keydown', handleEscKey)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
+  // Process file URL
+  useEffect(() => {
+    if (!isOpen) return
+
+    const processFile = () => {
       setIsLoading(true)
       setError("")
 
-      // Use provided URL or create from file
-      const processedUrl = providedUrl || createUrlFromFile(fileData)
-      const mimeType = getMimeType(fileData, providedType)
+      try {
+        let processedUrl = ""
 
-      // Set file info
-      const info = {
-        name: fileName || (typeof fileData === "string" ? fileData.split("/").pop() : fileData?.name) || "File",
-        size: getFileSize(fileData),
-        type: mimeType,
-        isPreviewable: isPreviewable(mimeType),
-        url: processedUrl,
-      }
-
-      setFileInfo(info)
-
-      if (!processedUrl) {
-        setError("File tidak dapat diakses atau URL tidak valid")
-        setIsLoading(false)
-        return
-      }
-
-      if (!info.isPreviewable) {
-        setError("Format file tidak mendukung preview")
-        setIsLoading(false)
-        return
-      }
-
-      setPreviewUrl(processedUrl)
-      setIsLoading(false)
-    } catch (error) {
-      console.error("Error processing file URL:", error)
-      setError(`Error memproses file: ${error instanceof Error ? error.message : "Unknown error"}`)
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (isOpen && (file || url)) {
-      processFileUrl(file, url, type)
-    }
-
-    // Clean up function to revoke blob URLs when component unmounts or dialog closes
-    return () => {
-      blobUrlsRef.current.forEach((blobUrl) => {
-        if (blobUrl.startsWith("blob:")) {
-          try {
-            URL.revokeObjectURL(blobUrl)
-          } catch (e) {
-            console.error("Error revoking blob URL:", e)
+        // Handle different file input types
+        if (url) {
+          processedUrl = url
+        } else if (file) {
+          if (typeof file === "string") {
+            processedUrl = file
+          } else if (file instanceof File || file instanceof Blob) {
+            processedUrl = URL.createObjectURL(file as Blob)
+          } else if (file && typeof file === "object") {
+            if (file.url) {
+              processedUrl = file.url
+            } else if (file.base64) {
+              processedUrl = file.base64.startsWith("data:") ? file.base64 : `data:${type};base64,${file.base64}`
+            }
           }
         }
-      })
-      blobUrlsRef.current = []
+
+        if (!processedUrl) {
+          setError("File tidak dapat diakses")
+          setIsLoading(false)
+          return
+        }
+
+        setPreviewUrl(processedUrl)
+        setIsLoading(false)
+      } catch (err) {
+        setError("Gagal memproses file")
+        setIsLoading(false)
+      }
     }
+
+    processFile()
   }, [isOpen, file, url, type])
 
+  // Get file icon based on type
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith("image/")) return <ImageIcon className="h-12 w-12 text-blue-500" />
+    if (fileType.startsWith("video/")) return <Video className="h-12 w-12 text-red-500" />
+    if (fileType.startsWith("audio/")) return <Music className="h-12 w-12 text-purple-500" />
+    if (fileType === "application/pdf") return <FileText className="h-12 w-12 text-red-600" />
+    if (fileType.startsWith("text/")) return <FileText className="h-12 w-12 text-green-500" />
+    return <File className="h-12 w-12 text-gray-500" />
+  }
+
+  // Check if file is previewable
+  const isPreviewable = (fileType: string) => {
+    return fileType.startsWith("image/") || 
+           fileType.startsWith("video/") || 
+           fileType.startsWith("audio/") || 
+           fileType === "application/pdf" ||
+           fileType.startsWith("text/")
+  }
+
+  // Handle download
   const handleDownload = () => {
-    try {
-      if (!previewUrl && !url) {
-        console.error("No URL available for download")
-        return
-      }
+    if (!previewUrl && !url) return
 
-      const downloadUrl = previewUrl || url
-      const link = document.createElement("a")
-      link.href = downloadUrl
-      link.download = fileName || "download"
-
-      if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://")) {
-        link.target = "_blank"
-        link.rel = "noopener noreferrer"
-      }
-
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
-      console.error("Error downloading file:", error)
-    }
+    const downloadUrl = previewUrl || url
+    const link = document.createElement("a")
+    link.href = downloadUrl
+    link.download = fileName || "download"
+    link.target = "_blank"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith("image/")) return <ImageIcon className="h-8 w-8 text-blue-500" />
-    if (mimeType.startsWith("video/")) return <Video className="h-8 w-8 text-red-500" />
-    if (mimeType.startsWith("audio/")) return <Music className="h-8 w-8 text-purple-500" />
-    if (mimeType === "application/pdf") return <FileText className="h-8 w-8 text-red-600" />
-    if (mimeType.startsWith("text/")) return <FileText className="h-8 w-8 text-green-500" />
-    return <File className="h-8 w-8 text-gray-500" />
-  }
-
+  // Render preview content
   const renderPreview = () => {
     if (isLoading) {
       return (
@@ -312,63 +139,42 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
       )
     }
 
-    if (error || !previewUrl || !fileInfo?.isPreviewable) {
+    if (error || !previewUrl) {
       return (
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
-          {error ? (
-            <>
-              <FileX className="h-16 w-16 text-red-400" />
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview Tidak Tersedia</h3>
-                <p className="text-gray-600 mb-4">{error}</p>
-              </div>
-            </>
-          ) : (
-            <>
-              {fileInfo && getFileIcon(fileInfo.type)}
-              <div className="text-center">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">File Tersedia</h3>
-                <p className="text-gray-600 mb-4">
-                  Format file ini tidak mendukung preview, tetapi Anda dapat mendownloadnya.
-                </p>
-              </div>
-            </>
-          )}
-
-          {fileInfo && (
-            <div className="bg-gray-50 p-4 rounded-lg border w-full max-w-md">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-700">Nama File:</span>
-                  <span className="text-gray-900 truncate ml-2">{fileInfo.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-700">Ukuran:</span>
-                  <span className="text-gray-900">{fileInfo.size}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-700">Tipe:</span>
-                  <span className="text-gray-900">{fileInfo.type}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <Button onClick={handleDownload} className="bg-blue-600 hover:bg-blue-700">
-            <Download className="h-4 w-4 mr-2" />
-            Download File
-          </Button>
+          <AlertTriangle className="h-16 w-16 text-red-400" />
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview Tidak Tersedia</h3>
+            <p className="text-gray-600">{error || "File tidak dapat diakses"}</p>
+          </div>
         </div>
       )
     }
 
-    const mimeType = fileInfo?.type || type
+    if (!isPreviewable(type)) {
+      return (
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          {getFileIcon(type)}
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">File Tersedia</h3>
+            <p className="text-gray-600 mb-4">
+              Format file ini tidak mendukung preview, tetapi Anda dapat mendownloadnya.
+            </p>
+            <Button onClick={handleDownload} className="bg-blue-600 hover:bg-blue-700">
+              <Download className="h-4 w-4 mr-2" />
+              Download File
+            </Button>
+          </div>
+        </div>
+      )
+    }
 
-    if (mimeType.startsWith("image/")) {
+    // Render based on file type
+    if (type.startsWith("image/")) {
       return (
         <div className="flex items-center justify-center">
           <img
-            src={previewUrl || "/placeholder.svg"}
+            src={previewUrl}
             alt={fileName}
             className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
             onError={() => setError("Gagal memuat gambar")}
@@ -377,7 +183,7 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
       )
     }
 
-    if (mimeType.startsWith("video/")) {
+    if (type.startsWith("video/")) {
       return (
         <div className="flex items-center justify-center">
           <video
@@ -392,11 +198,11 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
       )
     }
 
-    if (mimeType.startsWith("audio/")) {
+    if (type.startsWith("audio/")) {
       return (
         <div className="flex flex-col items-center justify-center space-y-4">
           <Music className="h-16 w-16 text-purple-500" />
-          <audio src={previewUrl} controls className="w-full max-w-md" onError={() => setError("Gagal memuat audio")}>
+          <audio src={previewUrl} controls className="w-full max-w-md">
             Browser Anda tidak mendukung tag audio.
           </audio>
           <p className="text-gray-600 text-center">{fileName}</p>
@@ -404,40 +210,26 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
       )
     }
 
-    if (mimeType === "application/pdf") {
+    if (type === "application/pdf") {
       return (
         <div className="w-full h-[70vh]">
-          <object
-            data={previewUrl}
-            type="application/pdf"
+          <iframe
+            src={previewUrl}
             className="w-full h-full border-0 rounded-lg"
-            onError={() => setError("Gagal memuat PDF")}
-          >
-            <p>
-              Browser Anda tidak mendukung preview PDF.{" "}
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                Klik disini untuk membuka PDF
-              </a>
-            </p>
-          </object>
+            title={fileName}
+          />
         </div>
       )
     }
 
-    if (mimeType.startsWith("text/") || mimeType === "application/json") {
+    if (type.startsWith("text/")) {
       return (
-        <div className="w-full">
-          <ScrollArea className="h-[60vh] w-full border rounded-lg p-4 bg-gray-50">
-            <pre className="text-sm text-gray-800 whitespace-pre-wrap break-words">
-              <iframe
-                src={previewUrl}
-                className="w-full h-full border-0"
-                title={fileName}
-                onError={() => setError("Gagal memuat teks")}
-                sandbox="allow-same-origin"
-              />
-            </pre>
-          </ScrollArea>
+        <div className="w-full h-[60vh] border rounded-lg p-4 bg-gray-50 overflow-auto">
+          <iframe
+            src={previewUrl}
+            className="w-full h-full border-0"
+            title={fileName}
+          />
         </div>
       )
     }
@@ -448,35 +240,92 @@ export function PreviewModal({ isOpen, onOpenChange, file, url, type, fileName, 
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Preview Tidak Didukung</h3>
           <p className="text-gray-600 mb-4">Format file ini tidak dapat ditampilkan dalam preview.</p>
+          <Button onClick={handleDownload} className="bg-blue-600 hover:bg-blue-700">
+            <Download className="h-4 w-4 mr-2" />
+            Download File
+          </Button>
         </div>
-        <Button onClick={handleDownload} className="bg-blue-600 hover:bg-blue-700">
-          <Download className="h-4 w-4 mr-2" />
-          Download File
-        </Button>
       </div>
     )
   }
 
+  if (!isOpen) return null
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Eye className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <DialogTitle className="text-lg font-semibold text-gray-900 truncate">{title}</DialogTitle>
-                <p className="text-sm text-gray-600 truncate">{fileName}</p>
-              </div>
+    <div 
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Eye className="h-5 w-5 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900 truncate">{title}</h2>
+              <p className="text-sm text-gray-600 truncate">{fileName}</p>
             </div>
           </div>
-        </DialogHeader>
+          <div className="flex items-center space-x-2">
+            {previewUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                className="h-8 text-xs"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Download
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClose}
+              className="h-8 w-8 p-0 hover:bg-gray-200"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-        <div className="p-6 overflow-auto max-h-[calc(90vh-120px)]">{renderPreview()}</div>
-      </DialogContent>
-    </Dialog>
+        {/* Content */}
+        <div className="p-6 overflow-auto max-h-[calc(90vh-140px)]">
+          {renderPreview()}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+          <div className="text-sm text-gray-500">
+            {fileName && <span>{fileName}</span>}
+          </div>
+          <div className="flex space-x-2">
+            {previewUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            )}
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleClose}
+            >
+              Tutup
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

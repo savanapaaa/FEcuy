@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import Swal from 'sweetalert2'
+import { showReviewSuccessAlert, showErrorAlert } from '@/lib/sweetalert-utils'
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -661,8 +663,14 @@ export default function ContentReviewDialog({
 
   if (!submission) return null
 
-  const contentItems = submission.contentItems?.filter((item) => item.status === "pending") || []
+  const contentItems = submission.contentItems?.filter((item) => !item.status || item.status === "pending") || []
   const currentItem = contentItem || contentItems[currentStep]
+
+  console.log("🔍 ContentReviewDialog Debug:")
+  console.log("- Submission:", submission.judul)
+  console.log("- Total contentItems:", submission.contentItems?.length || 0)
+  console.log("- Pending contentItems:", contentItems.length)
+  console.log("- Content items:", submission.contentItems?.map(item => ({ nama: item.nama, status: item.status })))
 
   if (!currentItem && contentItems.length === 0) {
     return (
@@ -821,54 +829,72 @@ export default function ContentReviewDialog({
   const handleConfirmedReviewSubmit = async () => {
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    const submissions = loadSubmissionsFromStorage()
-    const updatedSubmissions = submissions.map((sub: any) => {
-      if (sub.id === submission.id) {
-        const updatedContentItems = sub.contentItems?.map((contentItem: any) => {
-          const decision = reviewDecisions[contentItem.id]
-          if (decision) {
-            return {
-              ...contentItem,
-              status: decision,
-              alasanPenolakan: decision === "rejected" ? rejectionReasons[contentItem.id] : undefined,
-              tanggalDiproses: new Date().toLocaleDateString("id-ID"),
-              diprosesoleh: "Admin",
+      const submissions = loadSubmissionsFromStorage()
+      const updatedSubmissions = submissions.map((sub: any) => {
+        if (sub.id === submission.id) {
+          const updatedContentItems = sub.contentItems?.map((contentItem: any) => {
+            const decision = reviewDecisions[contentItem.id]
+            if (decision) {
+              return {
+                ...contentItem,
+                status: decision,
+                alasanPenolakan: decision === "rejected" ? rejectionReasons[contentItem.id] : undefined,
+                tanggalDiproses: new Date().toLocaleDateString("id-ID"),
+                diprosesoleh: "Admin",
+              }
             }
+            return contentItem
+          })
+
+          const updatedSubmission = {
+            ...sub,
+            contentItems: updatedContentItems,
+            lastModified: new Date(),
+            tanggalReview: new Date().toISOString(), // Add review timestamp
           }
-          return contentItem
-        })
+          updatedSubmission.workflowStage = getWorkflowStage(updatedSubmission)
 
-        const updatedSubmission = {
-          ...sub,
-          contentItems: updatedContentItems,
-          lastModified: new Date(),
-          tanggalReview: new Date().toISOString(), // Add review timestamp
+          return updatedSubmission
         }
-        updatedSubmission.workflowStage = getWorkflowStage(updatedSubmission)
+        return sub
+      })
 
-        return updatedSubmission
+      saveSubmissionsToStorage(updatedSubmissions)
+      onUpdate(updatedSubmissions)
+
+      const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
+      const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+
+      // Show success SweetAlert
+      await showReviewSuccessAlert(approvedCount, rejectedCount)
+
+      onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
+      setIsSubmitting(false)
+      setShowReviewSummary(false)
+
+      // Show confirmation step if there are approved items
+      if (approvedCount > 0) {
+        setShowConfirmation(true)
+      } else {
+        onOpenChange(false)
       }
-      return sub
-    })
-
-    saveSubmissionsToStorage(updatedSubmissions)
-    onUpdate(updatedSubmissions)
-
-    const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
-    const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
-
-    onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
-    setIsSubmitting(false)
-    setShowReviewSummary(false)
-
-    // Show confirmation step if there are approved items
-    if (approvedCount > 0) {
-      setShowConfirmation(true)
-    } else {
-      onOpenChange(false)
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      
+      // Show error SweetAlert
+      await Swal.fire({
+        title: 'Gagal Menyimpan Review',
+        text: 'Terjadi kesalahan saat menyimpan review. Silakan coba lagi.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#dc2626'
+      })
+      
+      setIsSubmitting(false)
     }
   }
 
@@ -1935,7 +1961,7 @@ export default function ContentReviewDialog({
       {/* Preview Modal */}
       <PreviewModal
         isOpen={previewModal.isOpen}
-        onClose={() => setPreviewModal((prev) => ({ ...prev, isOpen: false }))}
+        onOpenChange={(open) => setPreviewModal((prev) => ({ ...prev, isOpen: open }))}
         file={previewModal.file}
         url={previewModal.url}
         type={previewModal.type}

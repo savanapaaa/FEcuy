@@ -1,11 +1,26 @@
+// Enhanced file data interface for form storage
+export interface FileDataForForm {
+  name: string
+  size: number
+  type: string
+  lastModified: number
+  base64?: string
+  url?: string
+  preview?: string
+  thumbnailBase64?: string
+}
+
+// Union type for file values in forms
+export type FileValue = File | FileDataForForm | string | null
+
 export interface FormData {
   tema: string
   judul: string
   petugasPelaksana: string
   supervisor: string
   contentItems: FormContentItem[]
-  buktiMengetahui: File | string | null
-  dokumenPendukung: File[]
+  buktiMengetahui: FileValue
+  dokumenPendukung: FileValue[]
   noComtab: string
   pinSandi: string
 }
@@ -22,17 +37,17 @@ export interface FormContentItem {
   mediaMassa: string[]
   narasiSourceType: string[]
   narasiText: string
-  narasiFile: File | null
-  suratFile: File | null
+  narasiFile: FileValue
+  suratFile: FileValue
   audioDubbingSourceType: string[]
-  audioDubbingFile: File | null
-  audioDubbingLainLainFile: File | null
+  audioDubbingFile: FileValue
+  audioDubbingLainLainFile: FileValue
   audioBacksoundSourceType: string[]
-  audioBacksoundFile: File | null
-  audioBacksoundLainLainFile: File | null
+  audioBacksoundFile: FileValue
+  audioBacksoundLainLainFile: FileValue
   pendukungLainnyaSourceType: string[]
-  pendukungVideoFile: File | null
-  pendukungFotoFile: File | null
-  pendukungLainLainFile: File | null
+  pendukungVideoFile: FileValue
+  pendukungFotoFile: FileValue
+  pendukungLainLainFile: FileValue
   keterangan: string
 }

@@ -8,24 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Upload, Link, X, FileText, ImageIcon, Video, Music, ExternalLink } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-
-// Enhanced FileData interface for better file handling and preview
-interface FileDataForForm {
-  name: string
-  size: number
-  type: string
-  lastModified: number
-  base64?: string // For preview and persistence
-  url?: string // Blob URL for temporary preview
-  preview?: string // Optimized preview URL
-  thumbnailBase64?: string // Compressed thumbnail for lists
-}
+import { FileDataForForm, FileValue } from "@/app/form-types"
 
 interface EnhancedFileOrLinkInputProps {
   id: string
   label: string
-  value?: File | string | null
-  onChange: (newValue: File | string | null) => void
+  value?: FileValue
+  onChange: (newValue: FileValue) => void
   accept?: string
   sourceTypes?: string[]
   onSourceToggle?: () => void
@@ -226,9 +215,22 @@ const EnhancedFileOrLinkInput: React.FC<EnhancedFileOrLinkInputProps> = ({
   const [linkValue, setLinkValue] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null
-    onChange(file)
+    
+    if (file) {
+      try {
+        // Convert file to FileDataForForm with base64 for storage and preview
+        const fileDataWithPreview = await createFileDataForPreview(file)
+        onChange(fileDataWithPreview)
+      } catch (error) {
+        console.error("Error processing file:", error)
+        // Fallback to original file if conversion fails
+        onChange(file)
+      }
+    } else {
+      onChange(null)
+    }
   }
 
   const handleLinkChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,7 +272,7 @@ const EnhancedFileOrLinkInput: React.FC<EnhancedFileOrLinkInputProps> = ({
         </label>
       </div>
 
-      {value && value instanceof File && (
+      {value && (value instanceof File || (typeof value === "object" && value.name)) && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -278,8 +280,12 @@ const EnhancedFileOrLinkInput: React.FC<EnhancedFileOrLinkInputProps> = ({
         >
           <div className="flex items-center space-x-2">
             <FileText className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-800">{value.name}</span>
-            <span className="text-xs text-blue-600">({(value.size / 1024 / 1024).toFixed(2)} MB)</span>
+            <span className="text-sm font-medium text-blue-800">
+              {value instanceof File ? value.name : (value as FileDataForForm).name}
+            </span>
+            <span className="text-xs text-blue-600">
+              ({((value instanceof File ? value.size : (value as FileDataForForm).size) / 1024 / 1024).toFixed(2)} MB)
+            </span>
           </div>
           <Button
             type="button"

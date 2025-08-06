@@ -17,7 +17,7 @@ import {
   ArrowRight,
   RefreshCw,
 } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useMobile } from "@/hooks/use-mobile"
@@ -51,6 +51,16 @@ export default function AdminDashboardPage() {
     publishedContent: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [showStats, setShowStats] = useState(true) // Default true for desktop, will be managed by state
+
+  // Set default showStats based on device type
+  useEffect(() => {
+    if (isMobile) {
+      setShowStats(false) // Hidden by default on mobile
+    } else {
+      setShowStats(true) // Shown by default on desktop
+    }
+  }, [isMobile])
 
   useEffect(() => {
     if (!authLoading) {
@@ -124,13 +134,88 @@ export default function AdminDashboardPage() {
             animate={{ y: 0, opacity: 1 }}
             className="relative z-10 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0"
           >
-            <div className="max-w-7xl mx-auto px-6 py-6">
-              <div className="flex items-center justify-between">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+              {/* Mobile Layout */}
+              <div className="md:hidden">
+                <div className="flex items-center justify-between">
+                  <motion.div
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center space-x-3 flex-1"
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBack}
+                      className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 p-2"
+                    >
+                      <ArrowRight className="h-4 w-4 rotate-180" />
+                    </Button>
+                    <motion.div
+                      whileHover={{ rotate: 15 }}
+                      className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg"
+                    >
+                      <Shield className="h-4 w-4 text-white" />
+                    </motion.div>
+                    <div className="flex-1">
+                      <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        Admin Dashboard
+                      </h1>
+                      <p className="text-xs text-gray-600">Selamat datang, {user?.fullName || "Administrator"}</p>
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ x: 20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex items-center space-x-2"
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowStats(!showStats)}
+                      className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2"
+                      title={showStats ? "Sembunyikan Statistik" : "Tampilkan Statistik"}
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={refreshStats}
+                      className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2"
+                      title="Refresh Data"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden md:flex items-center justify-between">
+                <motion.div
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBack}
+                    className="hover:bg-blue-50 hover:border-blue-200 transition-all duration-300 mr-6"
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                    Kembali
+                  </Button>
+                </motion.div>
                 <motion.div
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="flex items-center space-x-4"
+                  className="flex items-center space-x-4 flex-1"
                 >
                   <motion.div
                     whileHover={{ rotate: 15 }}
@@ -140,9 +225,9 @@ export default function AdminDashboardPage() {
                   </motion.div>
                   <div>
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                      Admin Dashboard
+                      Dashboard Workflow
                     </h1>
-                    <p className="text-gray-600">Selamat datang, {user?.name || "Administrator"}</p>
+                    <p className="text-gray-600">Selamat datang, {user?.fullName || "Administrator"}</p>
                   </div>
                 </motion.div>
                 <motion.div
@@ -154,20 +239,22 @@ export default function AdminDashboardPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={refreshStats}
-                    className="hover:bg-green-50 hover:border-green-200 transition-all duration-300"
+                    onClick={() => setShowStats(!showStats)}
+                    className="hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300"
+                    title={showStats ? "Sembunyikan Statistik" : "Tampilkan Statistik"}
                   >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Overview
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleBack}
-                    className="hover:bg-blue-50 hover:border-blue-200 transition-all duration-300"
+                    onClick={refreshStats}
+                    className="hover:bg-green-50 hover:border-green-200 transition-all duration-300"
+                    title="Refresh Data"
                   >
-                    <ArrowRight className="h-4 w-4 mr-2" />
-                    Kembali
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
                   </Button>
                 </motion.div>
               </div>
@@ -176,98 +263,52 @@ export default function AdminDashboardPage() {
 
           {/* Main Content */}
           <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
-            {/* Overview Statistics */}
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
-              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <BarChart3 className="h-6 w-6 text-indigo-600" />
-                    <span>Overview Statistik</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
-                      <FileText className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-blue-900">{stats.totalSubmissions}</p>
-                      <p className="text-sm text-blue-700">Total Pengajuan</p>
-                    </div>
-                    <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
-                      <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-green-900">{stats.approvedContent}</p>
-                      <p className="text-sm text-green-700">Konten Disetujui</p>
-                    </div>
-                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
-                      <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-purple-900">{stats.publishedContent}</p>
-                      <p className="text-sm text-purple-700">Konten Tayang</p>
-                    </div>
-                    <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl">
-                      <TrendingUp className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-orange-900">{stats.completed}</p>
-                      <p className="text-sm text-orange-700">Selesai</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+            {/* Overview Statistics - Collapsible */}
+            <AnimatePresence>
+              {showStats && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0, y: -20 }} 
+                  animate={{ opacity: 1, height: "auto", y: 0 }} 
+                  exit={{ opacity: 0, height: 0, y: -20 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="overflow-hidden"
+                >
+                  <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <BarChart3 className="h-6 w-6 text-indigo-600" />
+                        <span>Overview Statistik</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl">
+                          <FileText className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-blue-900">{stats.totalSubmissions}</p>
+                          <p className="text-sm text-blue-700">Total Pengajuan</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl">
+                          <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-green-900">{stats.approvedContent}</p>
+                          <p className="text-sm text-green-700">Konten Disetujui</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl">
+                          <Shield className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-purple-900">{stats.publishedContent}</p>
+                          <p className="text-sm text-purple-700">Konten Tayang</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl">
+                          <TrendingUp className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                          <p className="text-2xl font-bold text-orange-900">{stats.completed}</p>
+                          <p className="text-sm text-orange-700">Selesai</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Content Analysis */}
-            <motion.div initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-              <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Activity className="h-6 w-6 text-green-600" />
-                    <span>Analisis Konten</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <h3 className="font-semibold text-gray-800">Status Konten</h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Disetujui</span>
-                          <span className="text-sm font-medium">{stats.approvedContent}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all duration-1000"
-                            style={{
-                              width: `${stats.totalContent > 0 ? (stats.approvedContent / stats.totalContent) * 100 : 0}%`,
-                            }}
-                          ></div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Ditolak</span>
-                          <span className="text-sm font-medium">{stats.rejectedContent}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-red-500 h-2 rounded-full transition-all duration-1000"
-                            style={{
-                              width: `${stats.totalContent > 0 ? (stats.rejectedContent / stats.totalContent) * 100 : 0}%`,
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl">
-                        <TrendingUp className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
-                        <p className="text-xl font-bold text-indigo-900">{stats.totalContent}</p>
-                        <p className="text-xs text-indigo-700">Total Konten</p>
-                      </div>
-                      <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl">
-                        <Shield className="h-6 w-6 text-pink-600 mx-auto mb-2" />
-                        <p className="text-xl font-bold text-pink-900">{stats.pendingValidation}</p>
-                        <p className="text-xs text-pink-700">Menunggu Validasi</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
 
             {/* Workflow Management */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

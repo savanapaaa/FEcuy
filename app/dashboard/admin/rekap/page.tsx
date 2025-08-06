@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { FileText, Search, Filter, User, Clock, CheckCircle, AlertTriangle, Eye, Shield, RefreshCw, ArrowLeft, Download, BarChart3, TrendingUp, Activity, Globe, ChevronDown, ChevronUp, X, Users, Layers, FileSpreadsheet, FileDown, Sparkles, XCircle, CalendarDays, Briefcase } from 'lucide-react'
 import { RekapDetailDialog } from "@/components/rekap-detail-dialog"
+import { MobileRekapDetailDialog } from "@/components/mobile-rekap-detail-dialog"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useMobile } from "@/hooks/use-mobile"

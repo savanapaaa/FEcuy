@@ -40,41 +40,91 @@ interface ContentItem {
   id: string
   nama: string
   jenisKonten: string
+  mediaPemerintah: string[]
+  mediaMassa: string[]
+  nomorSurat: string
+  narasiText: string
+  sourceNarasi: string[]
+  sourceAudioDubbing: string[]
+  sourceAudioBacksound: string[]
+  sourcePendukungLainnya: string[]
+  tanggalOrderMasuk: Date | undefined
+  tanggalJadi: Date | undefined
+  tanggalTayang: Date | undefined
+  keterangan: string
   status?: "pending" | "approved" | "rejected"
-  tanggalDiproses?: string
-  catatan?: string
   alasanPenolakan?: string
+  tanggalDiproses?: string
   diprosesoleh?: string
+  narasiSourceType?: ("text" | "file" | "surat")[]
+  audioDubbingSourceType?: ("file-audio" | "lain-lain")[]
+  audioBacksoundSourceType?: ("file-audio" | "lain-lain")[]
+  pendukungLainnyaSourceType?: ("video" | "foto" | "lain-lain")[]
+  narasiFile?: any
+  suratFile?: any
+  audioDubbingFile?: any
+  audioDubbingLainLainFile?: any
+  audioBacksoundFile?: any
+  audioBacksoundLainLainFile?: any
+  pendukungVideoFile?: any
+  pendukungFotoFile?: any
+  pendukungLainLainFile?: any
+  hasilProdukFile?: any
+  hasilProdukLink?: string
+  isTayang?: boolean
+  tanggalValidasiTayang?: string
+  validatorTayang?: string
+  keteranganValidasi?: string
+  catatan?: string
 }
 
 interface Submission {
   id: number
   noComtab: string
+  pin: string
   tema: string
   judul: string
+  jenisMedia: string
+  mediaPemerintah: string[]
+  mediaMassa: string[]
+  jenisKonten: string[]
+  tanggalOrder: Date | undefined
+  petugasPelaksana: string
+  supervisor: string
+  durasi: string
+  jumlahProduksi: string
   tanggalSubmit: Date | undefined
+  lastModified?: Date | undefined
+  uploadedBuktiMengetahui?: any
   isConfirmed?: boolean
+  tanggalKonfirmasi?: string
   contentItems?: ContentItem[]
   buktiMengetahui?: FileData | string
   dokumenPendukung?: (FileData | string)[]
   workflowStage?: "submitted" | "review" | "validation" | "completed"
-  lastModified?: Date
   tanggalReview?: string
 }
 
 // Helper function to determine workflow stage
 const getWorkflowStage = (submission: Submission) => {
   if (!submission.isConfirmed) return "submitted"
+
   const contentItems = submission.contentItems || []
   if (contentItems.length === 0) return "review"
+
   const allReviewed = contentItems.every(
     (item: ContentItem) => item.status === "approved" || item.status === "rejected",
   )
   if (!allReviewed) return "review"
+
   const hasApprovedItems = contentItems.some((item: ContentItem) => item.status === "approved")
   if (!hasApprovedItems) return "completed"
-  // If all items are reviewed and there are approved items, move to validation
-  return "validation"
+
+  const approvedItems = contentItems.filter((item: ContentItem) => item.status === "approved")
+  const allValidated = approvedItems.every((item: any) => item.isTayang !== undefined)
+
+  if (!allValidated) return "validation"
+  return "completed"
 }
 
 export default function ReviewPage() {
@@ -89,12 +139,72 @@ export default function ReviewPage() {
   const isMobile = useMobile()
   const router = useRouter()
 
+  console.log("🚀 ReviewPage component loaded")
+
   // Load submissions from localStorage - only those that need review
   useEffect(() => {
     const loadSubmissions = async () => {
       try {
         setIsLoading(true)
         console.log("Loading reviews...")
+
+        // Add global function for debugging
+        if (typeof window !== "undefined") {
+          (window as any).addTestData = () => {
+            const testSubmissions = [
+              {
+                id: Date.now(),
+                noComtab: "20250806101530/IKP/08/2025",
+                pin: "1234",
+                tema: "Kesehatan",
+                judul: "Kampanye Hidup Sehat",
+                jenisMedia: "Digital",
+                mediaPemerintah: ["Website", "Instagram"],
+                mediaMassa: ["Kompas", "Detik"],
+                jenisKonten: ["video", "infografis"],
+                tanggalOrder: new Date(),
+                petugasPelaksana: "John Doe",
+                supervisor: "Jane Smith",
+                durasi: "30 hari",
+                jumlahProduksi: "5 konten",
+                tanggalSubmit: new Date(),
+                lastModified: new Date(),
+                isConfirmed: true,
+                workflowStage: "review",
+                contentItems: [
+                  {
+                    id: "content-1",
+                    nama: "Video Edukasi Hidup Sehat",
+                    jenisKonten: "video",
+                    mediaPemerintah: ["Instagram", "YouTube"],
+                    mediaMassa: ["TV One"],
+                    nomorSurat: "001/KEK/2025",
+                    narasiText: "Video edukasi tentang pola hidup sehat",
+                    sourceNarasi: ["text"],
+                    sourceAudioDubbing: [],
+                    sourceAudioBacksound: [],
+                    sourcePendukungLainnya: [],
+                    tanggalOrderMasuk: new Date(),
+                    tanggalJadi: new Date(),
+                    tanggalTayang: new Date(),
+                    keterangan: "Konten untuk kampanye kesehatan",
+                    status: "pending"
+                  }
+                ]
+              }
+            ]
+            
+            localStorage.setItem("submissions", JSON.stringify(testSubmissions))
+            console.log("✅ Test data added! Reload the page.")
+            window.location.reload()
+          }
+          
+          (window as any).clearTestData = () => {
+            localStorage.removeItem("submissions")
+            console.log("🗑️ Test data cleared! Reload the page.")
+            window.location.reload()
+          }
+        }
 
         // Try to load from API first
         const response = await getReviews()
@@ -106,15 +216,27 @@ export default function ReviewPage() {
             const reviewItem: Submission = {
               id: submission.id,
               noComtab: submission.noComtab || `COM-${submission.id}`,
+              pin: submission.pin || "0000",
               tema: submission.tema || "Tidak ada tema",
               judul: submission.judul || "Tidak ada judul",
+              jenisMedia: submission.jenisMedia || "",
+              mediaPemerintah: submission.mediaPemerintah || [],
+              mediaMassa: submission.mediaMassa || [],
+              jenisKonten: submission.jenisKonten || [],
+              tanggalOrder: submission.tanggalOrder ? new Date(submission.tanggalOrder) : undefined,
+              petugasPelaksana: submission.petugasPelaksana || "",
+              supervisor: submission.supervisor || "",
+              durasi: submission.durasi || "",
+              jumlahProduksi: submission.jumlahProduksi || "",
               tanggalSubmit: submission.tanggalSubmit ? new Date(submission.tanggalSubmit) : new Date(),
+              lastModified: submission.lastModified ? new Date(submission.lastModified) : new Date(),
+              uploadedBuktiMengetahui: submission.uploadedBuktiMengetahui,
               isConfirmed: true,
+              tanggalKonfirmasi: submission.tanggalKonfirmasi,
               contentItems: submission.contentItems || [],
               buktiMengetahui: submission.buktiMengetahui,
               dokumenPendukung: submission.dokumenPendukung || [],
               workflowStage: getWorkflowStage(submission),
-              lastModified: submission.lastModified ? new Date(submission.lastModified) : new Date(),
               tanggalReview: submission.tanggalReview,
             }
             return reviewItem
@@ -142,24 +264,49 @@ export default function ReviewPage() {
           const stored = localStorage.getItem("submissions")
           if (stored) {
             const parsedSubmissions = JSON.parse(stored)
+            console.log("📊 Total submissions in localStorage:", parsedSubmissions.length)
+            
+            // Debug each submission
+            parsedSubmissions.forEach((sub: any, index: number) => {
+              console.log(`🔍 Submission ${index + 1}: ${sub.judul}`)
+              console.log(`   - isConfirmed: ${sub.isConfirmed}`)
+              console.log(`   - workflowStage: ${sub.workflowStage}`)
+              console.log(`   - contentItems: ${sub.contentItems?.length || 0}`)
+            })
+            
             // Filter submissions that need review:
             // 1. Must be confirmed (submitted)
-            // 2. Must have workflowStage as "review" OR no workflowStage set (new submissions)
+            // 2. Must have workflowStage as "review"
             // 3. Must have content items that are pending review OR no content items yet
-            const reviewSubmissions = parsedSubmissions.filter((sub: Submission) => {
+            const reviewSubmissions = parsedSubmissions.filter((sub: any) => {
               // Must be confirmed/submitted
-              if (!sub.isConfirmed) return false
-              // Check workflow stage - should be "review" or undefined (new submissions)
-              if (sub.workflowStage && sub.workflowStage !== "review") return false
+              if (!sub.isConfirmed) {
+                console.log(`❌ ${sub.judul}: Not confirmed (isConfirmed: ${sub.isConfirmed})`)
+                return false
+              }
+              
+              // Check workflow stage - should be "review"
+              if (sub.workflowStage !== "review") {
+                console.log(`❌ ${sub.judul}: Wrong stage (${sub.workflowStage})`)
+                return false
+              }
+              
               // If no content items, it needs review setup
               const contentItems = sub.contentItems || []
-              if (contentItems.length === 0) return true
+              if (contentItems.length === 0) {
+                console.log(`✅ ${sub.judul}: No content items, needs review`)
+                return true
+              }
+              
               // Check if any content items are still pending review
               const hasPendingItems = contentItems.some(
-                (item: ContentItem) => !item.status || item.status === "pending",
+                (item: any) => !item.status || item.status === "pending",
               )
+              console.log(`${hasPendingItems ? '✅' : '❌'} ${sub.judul}: Has pending items: ${hasPendingItems}`)
               return hasPendingItems
             })
+            
+            console.log("📋 Submissions filtered for review:", reviewSubmissions.length)
             setSubmissions(reviewSubmissions)
           }
         }
@@ -213,9 +360,9 @@ export default function ReviewPage() {
       const allReviewed = contentItems.every(
         (item: ContentItem) => item.status === "approved" || item.status === "rejected",
       )
-      const updatedSub = {
+      const updatedSub: Submission = {
         ...sub,
-        workflowStage,
+        workflowStage: workflowStage as "submitted" | "review" | "validation" | "completed",
         // Add review timestamp if this submission was just fully reviewed
         tanggalReview: allReviewed && !sub.tanggalReview ? new Date().toISOString() : sub.tanggalReview,
       }

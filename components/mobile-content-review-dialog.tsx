@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import Swal from 'sweetalert2'
+import { showMobileReviewSuccessAlert, showErrorAlert } from '@/lib/sweetalert-utils'
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -490,52 +492,102 @@ export function MobileContentReviewDialog({
   const handleConfirmedReviewSubmit = async () => {
     setIsSubmitting(true)
 
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    const submissions = loadSubmissionsFromStorage()
-    const updatedSubmissions = submissions.map((sub: any) => {
-      if (sub.id === submission.id) {
-        const updatedContentItems = sub.contentItems?.map((contentItem: any) => {
-          const decision = reviewDecisions[contentItem.id]
-          if (decision) {
-            return {
-              ...contentItem,
-              status: decision,
-              alasanPenolakan: decision === "rejected" ? rejectionReasons[contentItem.id] : undefined,
-              tanggalDiproses: new Date().toLocaleDateString("id-ID"),
-              diprosesoleh: "Admin",
+      const submissions = loadSubmissionsFromStorage()
+      const updatedSubmissions = submissions.map((sub: any) => {
+        if (sub.id === submission.id) {
+          const updatedContentItems = sub.contentItems?.map((contentItem: any) => {
+            const decision = reviewDecisions[contentItem.id]
+            if (decision) {
+              return {
+                ...contentItem,
+                status: decision,
+                alasanPenolakan: decision === "rejected" ? rejectionReasons[contentItem.id] : undefined,
+                tanggalDiproses: new Date().toLocaleDateString("id-ID"),
+                diprosesoleh: "Admin",
+              }
             }
+            return contentItem
+          })
+
+          const updatedSubmission = {
+            ...sub,
+            contentItems: updatedContentItems,
+            lastModified: new Date(),
+            tanggalReview: new Date().toISOString(),
           }
-          return contentItem
-        })
+          updatedSubmission.workflowStage = getWorkflowStage(updatedSubmission)
 
-        const updatedSubmission = {
-          ...sub,
-          contentItems: updatedContentItems,
-          lastModified: new Date(),
-          tanggalReview: new Date().toISOString(),
+          return updatedSubmission
         }
-        updatedSubmission.workflowStage = getWorkflowStage(updatedSubmission)
+        return sub
+      })
 
-        return updatedSubmission
+      saveSubmissionsToStorage(updatedSubmissions)
+      onUpdate(updatedSubmissions)
+
+      const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
+      const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+
+      // Show success SweetAlert for mobile
+      await Swal.fire({
+        title: 'Review Berhasil!',
+        html: `
+          <div class="text-center">
+            <div class="mb-4">
+              <div class="text-base font-semibold text-gray-800 mb-3">Hasil Review:</div>
+              <div class="flex justify-center space-x-4">
+                <div class="text-center p-3 bg-green-50 rounded-lg">
+                  <div class="text-xl font-bold text-green-600">${approvedCount}</div>
+                  <div class="text-xs text-gray-600">Disetujui</div>
+                </div>
+                <div class="text-center p-3 bg-red-50 rounded-lg">
+                  <div class="text-xl font-bold text-red-600">${rejectedCount}</div>
+                  <div class="text-xs text-gray-600">Ditolak</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `,
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#2563eb',
+        customClass: {
+          popup: 'rounded-lg text-sm',
+          title: 'text-lg font-bold text-gray-800',
+          confirmButton: 'px-4 py-2 rounded-md font-medium text-sm'
+        },
+        width: 320 // Smaller width for mobile
+      })
+
+      onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
+      setIsSubmitting(false)
+      setShowReviewSummary(false)
+
+      if (approvedCount > 0) {
+        setShowConfirmation(true)
+      } else {
+        onOpenChange(false)
       }
-      return sub
-    })
-
-    saveSubmissionsToStorage(updatedSubmissions)
-    onUpdate(updatedSubmissions)
-
-    const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
-    const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
-
-    onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
-    setIsSubmitting(false)
-    setShowReviewSummary(false)
-
-    if (approvedCount > 0) {
-      setShowConfirmation(true)
-    } else {
-      onOpenChange(false)
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      
+      // Show error SweetAlert for mobile
+      await Swal.fire({
+        title: 'Gagal Menyimpan Review',
+        text: 'Terjadi kesalahan saat menyimpan review. Silakan coba lagi.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#dc2626',
+        customClass: {
+          popup: 'rounded-lg text-sm'
+        },
+        width: 320
+      })
+      
+      setIsSubmitting(false)
     }
   }
 
@@ -1230,7 +1282,7 @@ export function MobileContentReviewDialog({
       {/* Preview Modal */}
       <PreviewModal
         isOpen={previewModal.isOpen}
-        onClose={() => setPreviewModal((prev) => ({ ...prev, isOpen: false }))}
+        onOpenChange={(open) => setPreviewModal((prev) => ({ ...prev, isOpen: open }))}
         file={previewModal.file}
         url={previewModal.url}
         type={previewModal.type}

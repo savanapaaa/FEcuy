@@ -22,7 +22,11 @@ export function useFormSubmission() {
     const minutes = String(now.getMinutes()).padStart(2, "0")
     const seconds = String(now.getSeconds()).padStart(2, "0")
 
-    return `COMTAB-${year}${month}${day}-${hours}${minutes}${seconds}`
+    return `${year}${month}${day}${hours}${minutes}${seconds}/IKP/DDMM/YYYY`
+  }
+
+  const generatePIN = (): string => {
+    return Math.floor(1000 + Math.random() * 9000).toString()
   }
 
   const submitForm = async (
@@ -30,6 +34,45 @@ export function useFormSubmission() {
     isEditMode = false,
     editingSubmissionId: number | null = null,
   ): Promise<SubmissionResult> => {
+    // Show confirmation popup before submitting
+    if (!isEditMode) {
+      const confirmResult = await Swal.fire({
+        title: "Konfirmasi Pengiriman",
+        html: `
+          <div class="text-center space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p class="text-blue-800 font-semibold mb-2">Judul Pengajuan:</p>
+              <p class="text-blue-900">${formData.judul}</p>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p class="text-amber-800 font-semibold mb-2">Petugas Pelaksana:</p>
+              <p class="text-amber-900">${formData.petugasPelaksana}</p>
+            </div>
+            <p class="text-gray-600">Apakah Anda yakin ingin mengirim formulir ini?</p>
+            <p class="text-sm text-gray-500">Setelah dikirim, Anda akan mendapatkan nomor COMTAB dan PIN untuk tracking.</p>
+          </div>
+        `,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Ya, Kirim",
+        cancelButtonText: "Batal",
+        confirmButtonColor: "#16a34a",
+        cancelButtonColor: "#6b7280",
+        customClass: {
+          popup: "rounded-xl shadow-2xl",
+          confirmButton: "rounded-lg px-6 py-2",
+          cancelButton: "rounded-lg px-6 py-2",
+        },
+      })
+
+      if (!confirmResult.isConfirmed) {
+        return {
+          success: false,
+          error: "Pengiriman dibatalkan oleh user"
+        }
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -68,15 +111,11 @@ export function useFormSubmission() {
             ...existingSubmission,
             tema: formData.tema,
             judul: formData.judul,
+            petugasPelaksana: formData.petugasPelaksana,
+            supervisor: formData.supervisor,
             contentItems: formData.contentItems,
             buktiMengetahui: formData.buktiMengetahui,
             dokumenPendukung: formData.dokumenPendukung,
-            username: formData.username,
-            password: formData.password,
-            namaLengkap: formData.namaLengkap,
-            nip: formData.nip,
-            jabatan: formData.jabatan,
-            unitKerja: formData.unitKerja,
             lastModified: new Date(),
           }
 
@@ -114,24 +153,24 @@ export function useFormSubmission() {
         }
       } else {
         // Create new submission
-        const comtabNumber = generateComtabNumber()
+        // Use existing COMTAB and PIN from form if available, otherwise generate new ones
+        const comtabNumber = formData.noComtab || generateComtabNumber()
+        const pinNumber = formData.pinSandi || generatePIN()
+        
         const newSubmission = {
           id: Date.now(),
           noComtab: comtabNumber,
+          pin: pinNumber,
           tema: formData.tema,
           judul: formData.judul,
+          petugasPelaksana: formData.petugasPelaksana,
+          supervisor: formData.supervisor,
           contentItems: formData.contentItems,
           buktiMengetahui: formData.buktiMengetahui,
           dokumenPendukung: formData.dokumenPendukung,
-          username: formData.username,
-          password: formData.password,
-          namaLengkap: formData.namaLengkap,
-          nip: formData.nip,
-          jabatan: formData.jabatan,
-          unitKerja: formData.unitKerja,
           tanggalSubmit: new Date(),
-          isConfirmed: false,
-          workflowStage: "submitted" as const,
+          isConfirmed: true,
+          workflowStage: "review" as const,
           lastModified: new Date(),
         }
 
@@ -146,11 +185,23 @@ export function useFormSubmission() {
           html: `
             <div class="text-center space-y-4">
               <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p class="text-green-800 font-bold text-lg mb-2">Nomor COMTAB</p>
-                <p class="text-green-900 font-mono text-xl bg-white px-3 py-2 rounded border">${comtabNumber}</p>
+                <p class="text-green-800 font-bold text-lg mb-3">Data Akses Pengajuan</p>
+                <div class="space-y-3">
+                  <div class="bg-white border border-green-300 rounded-lg p-3">
+                    <p class="text-green-700 font-semibold mb-1">Nomor COMTAB:</p>
+                    <p class="text-green-900 font-mono text-lg">${comtabNumber}</p>
+                  </div>
+                  <div class="bg-white border border-green-300 rounded-lg p-3">
+                    <p class="text-green-700 font-semibold mb-1">PIN Sandi:</p>
+                    <p class="text-green-900 font-mono text-lg font-bold">${pinNumber}</p>
+                  </div>
+                </div>
               </div>
-              <p class="text-gray-600">Simpan nomor COMTAB ini untuk referensi Anda.</p>
-              <p class="text-sm text-gray-500">Halaman akan otomatis tertutup dalam <strong id="timer">5</strong> detik</p>
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p class="text-amber-800 font-semibold">⚠️ Penting!</p>
+                <p class="text-amber-700 text-sm">Simpan Nomor COMTAB dan PIN dengan baik. Data ini diperlukan untuk tracking dan edit pengajuan.</p>
+              </div>
+              <p class="text-sm text-gray-500">Halaman akan otomatis tertutup dalam <strong id="timer">8</strong> detik</p>
               <div class="w-full bg-gray-200 rounded-full h-2">
                 <div id="progress" class="bg-green-600 h-2 rounded-full transition-all duration-1000" style="width: 100%"></div>
               </div>
@@ -162,10 +213,10 @@ export function useFormSubmission() {
             popup: "rounded-xl shadow-2xl",
             confirmButton: "rounded-lg px-6 py-2",
           },
-          timer: 5000,
+          timer: 8000,
           timerProgressBar: false,
           willOpen: () => {
-            let timeLeft = 5
+            let timeLeft = 8
             const timerElement = document.getElementById("timer")
             const progressElement = document.getElementById("progress")
 
@@ -173,7 +224,7 @@ export function useFormSubmission() {
               timeLeft--
               if (timerElement) timerElement.textContent = timeLeft.toString()
               if (progressElement) {
-                progressElement.style.width = `${(timeLeft / 5) * 100}%`
+                progressElement.style.width = `${(timeLeft / 8) * 100}%`
               }
               if (timeLeft <= 0) {
                 clearInterval(timerInterval)
