@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSRF Token Test</title>
+</head>
+<body>
+    <h1>CSRF Token Test</h1>
+    <button onclick="testCsrfFlow()">Test CSRF Flow</button>
+    <div id="output"></div>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            output.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+
+        function getCookieValue(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) {
+                const cookieValue = parts.pop()?.split(';').shift();
+                return cookieValue ? decodeURIComponent(cookieValue) : null;
+            }
+            return null;
+        }
+
+        async function testCsrfFlow() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h2>Testing CSRF Flow...</h2>';
+
+            try {
+                // Step 1: Get CSRF token
+                log('Step 1: Fetching CSRF token...');
+                const csrfResponse = await fetch('https://be-savana.budiutamamandiri.com/sanctum/csrf-cookie', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                    }
+                });
+
+                log(`CSRF response status: ${csrfResponse.status}`);
+                log(`CSRF response headers: ${JSON.stringify(Object.fromEntries(csrfResponse.headers.entries()), null, 2)}`);
+
+                // Wait for cookie to be set
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Step 2: Check cookies
+                log(`All cookies: ${document.cookie}`);
+                const xsrfToken = getCookieValue('XSRF-TOKEN');
+                log(`XSRF-TOKEN: ${xsrfToken ? xsrfToken.substring(0, 20) + '...' : 'Not found'}`);
+
+                // Step 3: Test login with CSRF token
+                if (xsrfToken) {
+                    log('Step 3: Testing login with CSRF token...');
+                    const loginHeaders = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-XSRF-TOKEN': xsrfToken,
+                        'X-CSRF-TOKEN': xsrfToken
+                    };
+
+                    const testCredentials = {
+                        username: 'superadmin',
+                        password: 'super123'
+                    };
+
+                    const loginResponse = await fetch('https://be-savana.budiutamamandiri.com/api/auth/login', {
+                        method: 'POST',
+                        headers: loginHeaders,
+                        credentials: 'include',
+                        body: JSON.stringify(testCredentials)
+                    });
+
+                    const loginData = await loginResponse.json();
+                    log(`Login response status: ${loginResponse.status}`);
+                    log(`Login response: ${JSON.stringify(loginData, null, 2)}`);
+
+                    if (loginResponse.ok) {
+                        log('✅ Login successful!');
+                    } else {
+                        log(`❌ Login failed: ${loginData.message || 'Unknown error'}`);
+                    }
+                } else {
+                    log('❌ No CSRF token found, cannot test login');
+                }
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
