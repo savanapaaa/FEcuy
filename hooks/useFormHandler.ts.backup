@@ -69,20 +69,16 @@ export const useFormHandler = () => {
     const editId = urlParams.get("edit") || urlParams.get("editId")
     const editPin = urlParams.get("editPin")
 
-    console.log("useFormHandler: Checking edit parameters", { 
-      editId, 
-      editPin, 
-      url: window.location.href,
-      searchParams: urlParams.toString()
-    })
+    console.log("useFormHandler: URL params check", { editId, editPin, url: window.location.href })
 
     if (editId) {
-      console.log("useFormHandler: Setting edit mode for ID:", editId)
+      console.log("useFormHandler: Entering edit mode with ID:", editId)
       setIsEditMode(true)
       // Try to parse as number first, if it fails, find the submission to get the numeric ID
       const numericId = parseInt(editId, 10)
       if (!isNaN(numericId)) {
         setEditingSubmissionId(numericId)
+        console.log("useFormHandler: Using numeric ID:", numericId)
       } else {
         // If editId is not a number (like noComtab), find the submission and use its id
         const submissions = JSON.parse(localStorage.getItem("formSubmissions") || "[]")
@@ -96,26 +92,36 @@ export const useFormHandler = () => {
         
         if (submission) {
           setEditingSubmissionId(submission.id)
+          console.log("useFormHandler: Found submission by noComtab, using ID:", submission.id)
+        } else {
+          console.log("useFormHandler: Submission not found for noComtab:", editId)
         }
       }
       loadEditData(editId)
     } else {
-      console.log("useFormHandler: No edit parameters found, normal form mode")
+      console.log("useFormHandler: No edit parameters found, normal mode")
     }
   }, [])
 
   const loadEditData = (submissionId: string) => {
+    console.log("loadEditData: Loading data for ID:", submissionId)
     try {
       const submissions = JSON.parse(localStorage.getItem("formSubmissions") || "[]")
+      console.log("loadEditData: Found submissions in localStorage:", submissions.length)
+      
       // Try to find by noComtab first (for editing from riwayat), then by id (for numeric IDs)
       let submission = submissions.find((s: any) => s.noComtab === submissionId)
       
       if (!submission) {
         // Fallback: try to find by id if submissionId is numeric
         submission = submissions.find((s: any) => s.id === submissionId)
+        console.log("loadEditData: Searching by ID, found:", !!submission)
+      } else {
+        console.log("loadEditData: Found by noComtab:", submission.noComtab)
       }
 
       if (submission) {
+        console.log("loadEditData: Loading submission data:", submission)
         setFormData(submission.formData)
 
         // Extract selected content types and quantities
@@ -133,6 +139,14 @@ export const useFormHandler = () => {
 
         setSelectedContentTypes(types)
         setContentQuantities(quantities)
+        console.log("loadEditData: Set content types and quantities:", { types, quantities })
+      } else {
+        console.error("loadEditData: Submission not found for ID:", submissionId)
+      }
+    } catch (error) {
+      console.error("loadEditData: Error loading edit data:", error)
+    }
+  }
       }
     } catch (error) {
       console.error("Error loading edit data:", error)

@@ -504,7 +504,7 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
       if (onEdit) {
         onEdit(submission.noComtab)
       } else {
-        router.push(`/?editId=${submission.noComtab}&editPin=${submission.pin}`)
+        router.push(`/desktop/edit?id=${submission.noComtab}&pin=${submission.pin}`)
       }
       setIsEditAccessDialogOpen(false)
       showToastMessage("Akses edit berhasil! Mengarahkan ke halaman pengajuan.", "success")

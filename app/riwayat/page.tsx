@@ -18,9 +18,9 @@ export default function RiwayatPage() {
 
   const handleEdit = (id: string) => {
     if (isMobile) {
-      router.push(`/mobile/form?edit=${id}`)
+      router.push(`/mobile/edit?id=${id}`)
     } else {
-      router.push(`/?edit=${id}`)
+      router.push(`/desktop/edit?id=${id}`)
     }
   }
 

@@ -655,7 +655,7 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
       if (onEdit) {
         onEdit(targetSubmission.noComtab)
       } else {
-        router.push(`/mobile/form?editId=${targetSubmission.noComtab}&editPin=${targetSubmission.pin}`)
+        router.push(`/mobile/edit?id=${targetSubmission.noComtab}&pin=${targetSubmission.pin}`)
       }
     } catch (error) {
       console.error("Edit validation error:", error)
@@ -732,7 +732,7 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
     if (onEdit) {
       onEdit(submission.noComtab)
     } else {
-      router.push(`/mobile/form?editId=${submission.noComtab}&editPin=${submission.pin}&revision=true`)
+      router.push(`/mobile/edit?id=${submission.noComtab}&pin=${submission.pin}&revision=true`)
     }
   }
 
