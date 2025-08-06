@@ -621,7 +621,7 @@ export default function MobileHomePage() {
           </motion.div>
         )}
 
-        {/* Login Button - Only show if not authenticated */}
+        {/* Login Button - Only show if not authenticated
         {!isAuthenticated && (
           <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.9 }}>
             <Card
@@ -648,7 +648,7 @@ export default function MobileHomePage() {
               </CardContent>
             </Card>
           </motion.div>
-        )}
+        )} */}
       </div>
 
       {/* Footer */}

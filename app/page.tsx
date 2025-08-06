@@ -29,22 +29,22 @@ export default function HomePage() {
     }
   }, [isAuthenticated, user, isLoading, router, isMobile])
 
-  useEffect(() => {
-    if (!isInitialized) return
+  // useEffect(() => {
+  //   if (!isInitialized) return
 
-    // Redirect based on screen size after initialization
-    const timer = setTimeout(() => {
-      if (!isAuthenticated) {
-        if (isMobile) {
-          router.push("/mobile")
-        } else {
-          router.push("/desktop")
-        }
-      }
-    }, 2000) // Show splash screen for 2 seconds
+  //   // Redirect based on screen size after initialization
+  //   const timer = setTimeout(() => {
+  //     if (!isAuthenticated) {
+  //       if (isMobile) {
+  //         router.push("/mobile")
+  //       } else {
+  //         router.push("/desktop")
+  //       }
+  //     }
+  //   }, 2000) // Show splash screen for 2 seconds
 
-        return () => clearTimeout(timer)
-  }, [isMobile, isInitialized, router, isAuthenticated])
+  //       return () => clearTimeout(timer)
+  // }, [isMobile, isInitialized, router, isAuthenticated])
 
   const handleLogin = () => {
     router.push("/login")

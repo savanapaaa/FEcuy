@@ -14,6 +14,7 @@ export function middleware(request: NextRequest) {
     "/validasi": ["validasi"],
     "/rekap": ["rekap"],
     "/dashboard/admin": ["superadmin"],
+    
   }
 
   // Allow public routes
