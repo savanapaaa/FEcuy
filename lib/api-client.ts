@@ -1,7 +1,7 @@
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage } from "./utils"
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://be-savana.budiutamamandiri.com/api"
 
 // Types
 interface ApiResponse<T = any> {
@@ -9,6 +9,24 @@ interface ApiResponse<T = any> {
   data?: T
   message?: string
   error?: string
+}
+
+// Backend API Response Types (matching your actual API)
+interface BackendLoginResponse {
+  message: string
+  token: string
+  user: BackendUser
+}
+
+interface BackendUser {
+  id: number
+  name: string
+  email: string
+  username: string
+  email_verified_at: string
+  role: string
+  created_at: string
+  updated_at: string
 }
 
 interface LoginCredentials {
@@ -20,7 +38,7 @@ interface User {
   id: string
   username: string
   email: string
-  role: "admin" | "user" | "reviewer" | "validator"
+  role: "admin" | "user" | "reviewer" | "validator" | "superadmin" | "form" | "review" | "validasi" | "rekap"
   name: string
 }
 
@@ -62,16 +80,53 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config)
-
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        let errorMessage = `HTTP error! status: ${response.status}`
+        
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorData.error || errorMessage
+        } catch {
+          // If not JSON, use the text or default message
+          errorMessage = errorText || errorMessage
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
-      return data
+      
+      // Handle direct backend responses (not wrapped in ApiResponse format)
+      if (data.message && data.token && data.user) {
+        // Login response format
+        return {
+          success: true,
+          data: data,
+          message: data.message
+        }
+      } else if (data.message && !data.user && !data.token) {
+        // Simple message response (like logout)
+        return {
+          success: true,
+          message: data.message
+        }
+      } else if (data.id && data.username) {
+        // Direct user object response (like /auth/me)
+        return {
+          success: true,
+          data: data
+        }
+      } else {
+        // Other responses
+        return {
+          success: true,
+          data: data
+        }
+      }
     } catch (error) {
       console.warn(`API request to ${endpoint} failed:`, error)
-      // Don't throw here, let individual methods handle fallbacks
       throw error
     }
   }
@@ -79,20 +134,37 @@ class ApiClient {
   // Auth methods
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> {
     try {
-      const response = await this.request<{ user: User; token: string }>("/auth/login", {
+      const response = await this.request<BackendLoginResponse>("/auth/login", {
         method: "POST",
         body: JSON.stringify(credentials),
       })
 
       if (response.success && response.data?.token) {
         this.token = response.data.token
+        
+        // Convert backend user format to frontend user format
+        const backendUser = response.data.user
+        const frontendUser: User = {
+          id: backendUser.id.toString(),
+          username: backendUser.username,
+          email: backendUser.email,
+          role: this.mapBackendRole(backendUser.role),
+          name: backendUser.name
+        }
+        
         if (typeof window !== "undefined") {
           localStorage.setItem("auth_token", response.data.token)
-          localStorage.setItem("user", JSON.stringify(response.data.user))
+          localStorage.setItem("user", JSON.stringify(frontendUser))
+        }
+
+        return {
+          success: true,
+          data: { user: frontendUser, token: response.data.token },
+          message: response.data.message
         }
       }
 
-      return response
+      return response as any
     } catch (error) {
       console.warn("API login failed, using mock authentication")
       // Fallback for development
@@ -115,8 +187,26 @@ class ApiClient {
       return {
         success: true,
         data: { user: mockUser, token: mockToken },
+        error: error instanceof Error ? error.message : "Login failed"
       }
     }
+  }
+
+  // Helper method to map backend roles to frontend roles
+  private mapBackendRole(backendRole: string): User["role"] {
+    const roleMapping: Record<string, User["role"]> = {
+      'admin': 'admin',
+      'superadmin': 'superadmin', 
+      'form': 'form',
+      'review': 'review',
+      'validasi': 'validasi',
+      'rekap': 'rekap',
+      'user': 'user',
+      'reviewer': 'reviewer',
+      'validator': 'validator'
+    }
+    
+    return roleMapping[backendRole] || 'user'
   }
 
   async logout(): Promise<ApiResponse> {
@@ -145,7 +235,26 @@ class ApiClient {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     try {
-      return await this.request<User>("/auth/me")
+      const response = await this.request<BackendUser>("/auth/me")
+      
+      if (response.success && response.data) {
+        // Convert backend user format to frontend user format
+        const backendUser = response.data
+        const frontendUser: User = {
+          id: backendUser.id.toString(),
+          username: backendUser.username,
+          email: backendUser.email,
+          role: this.mapBackendRole(backendUser.role),
+          name: backendUser.name
+        }
+        
+        return {
+          success: true,
+          data: frontendUser
+        }
+      }
+      
+      return response as any
     } catch (error) {
       console.warn("API getCurrentUser failed, using stored user")
       // Fallback to stored user
