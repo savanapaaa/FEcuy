@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useResponsiveRedirect } from "@/hooks/use-responsive-redirect"
 import Swal from "sweetalert2"
+import { getSubmissions } from "@/lib/api-client"
 
 // Time-based greeting function
 const getTimeBasedGreeting = () => {
@@ -130,30 +131,36 @@ export default function MobileHomePage() {
     return () => clearInterval(interval)
   }, [mounted])
 
-  // Load statistics from localStorage
+  // Load statistics from server instead of localStorage
   useEffect(() => {
     if (!mounted) return
 
-    try {
-      const submissions = JSON.parse(localStorage.getItem("form_submissions") || "[]")
-      const pendingCount = submissions.filter(
-        (sub: any) => sub.status === "submitted" || sub.status === "review",
-      ).length
-      const completedCount = submissions.filter((sub: any) => sub.status === "approved").length
+    const loadStats = async () => {
+      try {
+        const response = await getSubmissions()
+        const submissions = response.success ? response.data || [] : []
+        
+        const pendingCount = submissions.filter(
+          (sub: any) => sub.status === "submitted" || sub.status === "review",
+        ).length
+        const completedCount = submissions.filter((sub: any) => sub.status === "approved").length
 
-      setStats({
-        totalSubmissions: submissions.length,
-        pendingReview: pendingCount,
-        completed: completedCount,
-      })
-    } catch (error) {
-      console.error("Error loading submissions:", error)
-      setStats({
-        totalSubmissions: 0,
-        pendingReview: 0,
-        completed: 0,
-      })
+        setStats({
+          totalSubmissions: submissions.length,
+          pendingReview: pendingCount,
+          completed: completedCount,
+        })
+      } catch (error) {
+        console.error("Error loading submissions from server:", error)
+        setStats({
+          totalSubmissions: 0,
+          pendingReview: 0,
+          completed: 0,
+        })
+      }
     }
+    
+    loadStats()
   }, [mounted])
 
   // Handle logout with SweetAlert2

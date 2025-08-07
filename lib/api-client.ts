@@ -72,6 +72,7 @@ class ApiClient {
     const config: RequestInit = {
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
         ...options.headers,
       },
@@ -79,6 +80,8 @@ class ApiClient {
     }
 
     try {
+      console.log(`🚀 API Request: ${config.method || 'GET'} ${url}`)
+      
       const response = await fetch(url, config)
       
       if (!response.ok) {
@@ -87,19 +90,30 @@ class ApiClient {
         
         try {
           const errorData = JSON.parse(errorText)
-          errorMessage = errorData.message || errorData.error || errorMessage
+          errorMessage = errorData.message || errorData.error || errorData.errors || errorMessage
+          
+          // Handle Laravel validation errors
+          if (errorData.errors) {
+            const validationErrors = Object.values(errorData.errors).flat()
+            errorMessage = validationErrors.join(', ')
+          }
         } catch {
           // If not JSON, use the text or default message
           errorMessage = errorText || errorMessage
         }
         
+        console.error(`❌ API Error: ${errorMessage}`)
         throw new Error(errorMessage)
       }
 
       const data = await response.json()
+      console.log(`✅ API Success: ${endpoint}`, data)
       
-      // Handle direct backend responses (not wrapped in ApiResponse format)
-      if (data.message && data.token && data.user) {
+      // Handle different backend response formats
+      if (data.success !== undefined) {
+        // Backend returns {success: boolean, data: any, message?: string}
+        return data
+      } else if (data.message && data.token && data.user) {
         // Login response format
         return {
           success: true,
@@ -112,21 +126,27 @@ class ApiClient {
           success: true,
           message: data.message
         }
-      } else if (data.id && data.username) {
+      } else if (data.id && (data.username || data.email)) {
         // Direct user object response (like /auth/me)
         return {
           success: true,
           data: data
         }
+      } else if (Array.isArray(data)) {
+        // Array response (like list endpoints)
+        return {
+          success: true,
+          data: data as T
+        }
       } else {
         // Other responses
         return {
           success: true,
-          data: data
+          data: data as T
         }
       }
     } catch (error) {
-      console.warn(`API request to ${endpoint} failed:`, error)
+      console.error(`💥 API request to ${endpoint} failed:`, error)
       throw error
     }
   }
@@ -284,119 +304,162 @@ class ApiClient {
 
   // Submission methods
   async getSubmissions(filters?: any): Promise<ApiResponse<any[]>> {
+    const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
+    
     try {
-      const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
-      return await this.request<any[]>(`/submissions${queryParams}`)
+      console.log("🔄 Fetching submissions from backend server...")
+      const response = await this.request<any[]>(`/submissions${queryParams}`)
+      
+      // Cache successful response to localStorage for offline access
+      if (response.success && response.data) {
+        saveSubmissionsToStorage(response.data)
+        console.log("✅ Submissions fetched from server and cached locally")
+      }
+      
+      return response
     } catch (error) {
-      console.warn("API getSubmissions failed, using local storage")
-      // Fallback to local storage
+      console.error("❌ Failed to fetch submissions from server:", error)
+      
+      // Only use localStorage as last resort with clear indication
+      console.warn("⚠️ Using cached local data as fallback (server unavailable)")
       const submissions = loadSubmissionsFromStorage()
+      
       return {
-        success: true,
+        success: false, // Mark as failed to indicate it's from cache
         data: submissions,
+        message: "Using cached data - server unavailable"
       }
     }
   }
 
   async getSubmission(id: string): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/submissions/${id}`)
+      console.log(`🔄 Fetching submission ${id} from backend server...`)
+      const response = await this.request<any>(`/submissions/${id}`)
+      
+      if (response.success) {
+        console.log(`✅ Submission ${id} fetched from server`)
+      }
+      
+      return response
     } catch (error) {
-      console.warn(`API getSubmission failed for ID ${id}, using local storage`)
-      // Fallback to local storage
+      console.error(`❌ Failed to fetch submission ${id} from server:`, error)
+      
+      // Only use localStorage as last resort
+      console.warn(`⚠️ Searching cached local data for submission ${id}`)
       const submissions = loadSubmissionsFromStorage()
       const submission = submissions.find((s: any) => s.id.toString() === id)
 
       if (submission) {
         return {
-          success: true,
+          success: false, // Mark as failed to indicate it's from cache
           data: submission,
+          message: "Using cached data - server unavailable"
         }
       }
 
-      throw new Error("Submission not found")
+      throw new Error("Submission not found in server or cache")
     }
   }
 
   async createSubmission(data: any): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>("/submissions", {
+      console.log("🔄 Creating submission on backend server...")
+      const response = await this.request<any>("/submissions", {
         method: "POST",
         body: JSON.stringify(data),
       })
+      
+      if (response.success) {
+        console.log("✅ Submission created successfully on server")
+        
+        // Update local cache with server response
+        const submissions = loadSubmissionsFromStorage()
+        submissions.push(response.data)
+        saveSubmissionsToStorage(submissions)
+      }
+      
+      return response
     } catch (error) {
-      console.warn("API createSubmission failed, using local storage")
-      // Fallback to local storage
-      const submissions = loadSubmissionsFromStorage()
-      const newSubmission = {
-        ...data,
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
-
-      submissions.push(newSubmission)
-      saveSubmissionsToStorage(submissions)
-
-      return {
-        success: true,
-        data: newSubmission,
-      }
+      console.error("❌ Failed to create submission on server:", error)
+      
+      // IMPORTANT: For create operations, we should NOT use localStorage fallback
+      // because it won't be synced with server. Instead, throw the error.
+      throw new Error(`Failed to create submission on server: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   async updateSubmission(id: string, data: any): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/submissions/${id}`, {
+      console.log(`🔄 Updating submission ${id} on backend server...`)
+      const response = await this.request<any>(`/submissions/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       })
-    } catch (error) {
-      console.warn(`API updateSubmission failed for ID ${id}, using local storage`)
-      // Fallback to local storage
-      const submissions = loadSubmissionsFromStorage()
-      const index = submissions.findIndex((s: any) => s.id.toString() === id)
-
-      if (index !== -1) {
-        submissions[index] = {
-          ...submissions[index],
-          ...data,
-          updatedAt: new Date().toISOString(),
-        }
-        saveSubmissionsToStorage(submissions)
-
-        return {
-          success: true,
-          data: submissions[index],
+      
+      if (response.success) {
+        console.log(`✅ Submission ${id} updated successfully on server`)
+        
+        // Update local cache with server response
+        const submissions = loadSubmissionsFromStorage()
+        const index = submissions.findIndex((s: any) => s.id.toString() === id)
+        if (index !== -1) {
+          submissions[index] = response.data
+          saveSubmissionsToStorage(submissions)
         }
       }
-
-      throw new Error("Submission not found")
+      
+      return response
+    } catch (error) {
+      console.error(`❌ Failed to update submission ${id} on server:`, error)
+      
+      // For update operations, also don't use localStorage fallback
+      // because it won't be synced with server
+      throw new Error(`Failed to update submission on server: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   async deleteSubmission(id: string): Promise<ApiResponse> {
     try {
-      return await this.request(`/submissions/${id}`, { method: "DELETE" })
+      console.log(`🔄 Deleting submission ${id} from backend server...`)
+      const response = await this.request(`/submissions/${id}`, { method: "DELETE" })
+      
+      if (response.success) {
+        console.log(`✅ Submission ${id} deleted successfully from server`)
+        
+        // Remove from local cache
+        const submissions = loadSubmissionsFromStorage()
+        const filteredSubmissions = submissions.filter((s: any) => s.id.toString() !== id)
+        saveSubmissionsToStorage(filteredSubmissions)
+      }
+      
+      return response
     } catch (error) {
-      console.warn(`API deleteSubmission failed for ID ${id}, using local storage`)
-      // Fallback to local storage
-      const submissions = loadSubmissionsFromStorage()
-      const filteredSubmissions = submissions.filter((s: any) => s.id.toString() !== id)
-      saveSubmissionsToStorage(filteredSubmissions)
-
-      return { success: true }
+      console.error(`❌ Failed to delete submission ${id} from server:`, error)
+      
+      // For delete operations, also don't use localStorage fallback
+      throw new Error(`Failed to delete submission from server: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   // Review methods
   async getReviews(filters?: any): Promise<ApiResponse<any[]>> {
+    const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
+    
     try {
-      const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
-      return await this.request<any[]>(`/reviews${queryParams}`)
+      console.log("🔄 Fetching reviews from backend server...")
+      const response = await this.request<any[]>(`/reviews${queryParams}`)
+      
+      if (response.success) {
+        console.log("✅ Reviews fetched from server")
+      }
+      
+      return response
     } catch (error) {
-      console.warn("API getReviews failed, using local submissions data")
-      // Fallback to submissions that need review
+      console.error("❌ Failed to fetch reviews from server:", error)
+      
+      // Only use localStorage as last resort with clear indication
+      console.warn("⚠️ Using cached local data for reviews (server unavailable)")
       const submissions = loadSubmissionsFromStorage()
       const reviewItems = submissions.filter((s: any) => {
         // Include submissions that are confirmed and have content items
@@ -404,8 +467,9 @@ class ApiClient {
       })
 
       return {
-        success: true,
+        success: false, // Mark as failed to indicate it's from cache
         data: reviewItems,
+        message: "Using cached data - server unavailable"
       }
     }
   }

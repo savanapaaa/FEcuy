@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation"
 import { useMobile } from "@/hooks/use-mobile"
 import { useAuth } from "@/hooks/use-auth"
 import { RoleGuard } from "@/components/auth/role-guard"
+import { getSubmissions } from "@/lib/api-client"
 
 // Types
 interface DashboardStats {
@@ -65,34 +66,34 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (!authLoading) {
       // Load statistics logic
-      const loadStats = () => {
+      const loadStats = async () => {
         try {
-          const savedSubmissions = localStorage.getItem("submissions")
-          if (savedSubmissions) {
-            const submissions = JSON.parse(savedSubmissions)
-            const totalSubmissions = submissions.length
-            const pendingReview = submissions.filter((s: any) => !s.tanggalReview && !s.isOutputValidated).length
-            const pendingValidation = submissions.filter((s: any) => s.tanggalReview && !s.isOutputValidated).length
-            const completed = submissions.filter((s: any) => s.tanggalReview && s.isOutputValidated).length
-            const allContent = submissions.flatMap((s: any) => s.contentItems || [])
-            const totalContent = allContent.length
-            const approvedContent = allContent.filter((c: any) => c.status === "approved").length
-            const rejectedContent = allContent.filter((c: any) => c.status === "rejected").length
-            const publishedContent = allContent.filter((c: any) => c.isTayang === true).length
+          // Get submissions from server instead of localStorage
+          const response = await getSubmissions()
+          const submissions = response.success ? response.data || [] : []
+          
+          const totalSubmissions = submissions.length
+          const pendingReview = submissions.filter((s: any) => !s.tanggalReview && !s.isOutputValidated).length
+          const pendingValidation = submissions.filter((s: any) => s.tanggalReview && !s.isOutputValidated).length
+          const completed = submissions.filter((s: any) => s.tanggalReview && s.isOutputValidated).length
+          const allContent = submissions.flatMap((s: any) => s.contentItems || [])
+          const totalContent = allContent.length
+          const approvedContent = allContent.filter((c: any) => c.status === "approved").length
+          const rejectedContent = allContent.filter((c: any) => c.status === "rejected").length
+          const publishedContent = allContent.filter((c: any) => c.isTayang === true).length
 
-            setStats({
-              totalSubmissions,
-              pendingReview,
-              pendingValidation,
-              completed,
-              totalContent,
-              approvedContent,
-              rejectedContent,
-              publishedContent,
-            })
-          }
+          setStats({
+            totalSubmissions,
+            pendingReview,
+            pendingValidation,
+            completed,
+            totalContent,
+            approvedContent,
+            rejectedContent,
+            publishedContent,
+          })
         } catch (error) {
-          console.error("Error loading stats:", error)
+          console.error("Error loading stats from server:", error)
         } finally {
           setIsLoading(false)
         }
@@ -132,7 +133,7 @@ export default function AdminDashboardPage() {
           <motion.header
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="relative z-10 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0"
+            className="z-10 bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0"
           >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
               {/* Mobile Layout */}
@@ -162,7 +163,7 @@ export default function AdminDashboardPage() {
                       <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                         Admin Dashboard
                       </h1>
-                      <p className="text-xs text-gray-600">Selamat datang, {user?.fullName || "Administrator"}</p>
+                      <p className="text-xs text-gray-600">Selamat datang, {user?.name || "Administrator"}</p>
                     </div>
                   </motion.div>
 
@@ -227,7 +228,7 @@ export default function AdminDashboardPage() {
                     <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                       Dashboard Workflow
                     </h1>
-                    <p className="text-gray-600">Selamat datang, {user?.fullName || "Administrator"}</p>
+                    <p className="text-gray-600">Selamat datang, {user?.name || "Administrator"}</p>
                   </div>
                 </motion.div>
                 <motion.div

@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ApiTestPanel from "@/components/api-test-panel"
+import DataMigrationTool from "@/components/data-migration-tool"
+import DataSourceStatus from "@/components/data-source-status"
 
 export default function DebugPage() {
   const [status, setStatus] = useState("")
@@ -73,30 +77,55 @@ export default function DebugPage() {
   }
 
   return (
-    <div className="p-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Debug Tool - Submissions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={addTestData}>Add Test Data</Button>
-          <Button onClick={clearData} variant="destructive">Clear Data</Button>
-          <Button onClick={viewData} variant="outline">View Current Data</Button>
-          
-          <div className="p-4 bg-gray-100 rounded">
-            Status: {status}
-          </div>
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">🔧 Debug & Development Tools</h1>
+        <DataSourceStatus />
+      </div>
+      
+      <Tabs defaultValue="migration" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="migration">Data Migration</TabsTrigger>
+          <TabsTrigger value="api-test">API Integration Test</TabsTrigger>
+          <TabsTrigger value="data-management">Data Management</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="migration">
+          <DataMigrationTool />
+        </TabsContent>
+        
+        <TabsContent value="api-test">
+          <ApiTestPanel />
+        </TabsContent>
+        
+        <TabsContent value="data-management">
+          <Card>
+            <CardHeader>
+              <CardTitle>🗄️ Debug Tool - Submissions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Button onClick={addTestData} className="w-full">Add Test Data</Button>
+                <Button onClick={clearData} variant="destructive" className="w-full">Clear Data</Button>
+                <Button onClick={viewData} variant="outline" className="w-full">View Current Data</Button>
+              </div>
+              
+              <div className="p-4 bg-gray-100 rounded">
+                Status: {status}
+              </div>
 
-          <div className="space-y-2">
-            <a href="/dashboard/admin/review" className="block text-blue-600 hover:underline">
-              → Go to Review Page
-            </a>
-            <a href="/dashboard/admin" className="block text-blue-600 hover:underline">
-              → Go to Admin Dashboard  
-            </a>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="space-y-2">
+                <a href="/dashboard/admin/review" className="block text-blue-600 hover:underline">
+                  → Go to Review Page
+                </a>
+                <a href="/dashboard/admin" className="block text-blue-600 hover:underline">
+                  → Go to Admin Dashboard  
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

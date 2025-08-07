@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect } from "react"
 import { DiskomInfoLoading } from "@/components/global/diskominfo-loading"
+import { getSubmissions } from "@/lib/api-client"
 
 function MobileEditContent() {
   const router = useRouter()
@@ -11,7 +12,7 @@ function MobileEditContent() {
 
   useEffect(() => {
     // Add a small delay to ensure everything is loaded
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       // Get edit parameters and redirect to form with edit params
       const editId = searchParams.get("id") || searchParams.get("editId")
       const editPin = searchParams.get("pin") || searchParams.get("editPin")
@@ -26,18 +27,20 @@ function MobileEditContent() {
       if (editId) {
         // Validate submission exists before redirecting
         try {
-          const submissions = JSON.parse(localStorage.getItem("submissions") || "[]")
-          console.log("MobileEditPage: All submissions in localStorage:", submissions)
+          // Get submissions from server instead of localStorage
+          const response = await getSubmissions()
+          const submissions = response.success ? response.data || [] : []
+          console.log("MobileEditPage: All submissions from server:", submissions)
           console.log("MobileEditPage: Looking for editId:", editId)
           console.log("MobileEditPage: Looking for editPin:", editPin)
           
           // Debug: log all noComtab values
-          const noComtabList = submissions.map((s: any) => s.noComtab)
+          const noComtabList = submissions.map((s: any) => s.noComtab || s.id)
           console.log("MobileEditPage: Available noComtab values:", noComtabList)
           
           let submission = submissions.find((s: any) => {
-            console.log("MobileEditPage: Comparing", s.noComtab, "with", editId)
-            return s.noComtab === editId || s.id === editId
+            console.log("MobileEditPage: Comparing", s.noComtab || s.id, "with", editId)
+            return s.noComtab === editId || s.id === editId || s.id?.toString() === editId
           })
 
           if (!submission) {

@@ -6,7 +6,9 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "test:api": "node scripts/test-api.js",
+    "test:api:dev": "NEXT_PUBLIC_API_URL=http://localhost:8000/api node scripts/test-api.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
