@@ -2,7 +2,12 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback, createContext, useContext } from "react"
-import { userManager, type User, type UserRole } from "@/lib/user-management"
+import * as apiClient from "@/lib/api-client"
+
+// Import User type from api-client
+import type { User } from "@/lib/api-client"
+
+export type UserRole = "superadmin" | "form" | "review" | "validasi" | "rekap" | "admin" | "user" | "reviewer" | "validator"
 
 interface AuthState {
   user: User | null
@@ -72,29 +77,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; error?: string }> => {
     try {
-      const result = userManager.authenticateUser(credentials.username, credentials.password)
+      const result = await apiClient.login(credentials)
 
-      if (result.success && result.user) {
+      if (result.success && result.data?.user) {
         // Calculate session expiration (24 hours for superadmin, 8 hours for others)
-        const sessionDuration = result.user.role === "superadmin" ? 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000
+        const sessionDuration = result.data.user.role === "superadmin" ? 24 * 60 * 60 * 1000 : 8 * 60 * 60 * 1000
         const expiresAt = new Date().getTime() + sessionDuration
 
         // Store session
         const sessionData = {
-          user: result.user,
+          user: result.data.user,
           expiresAt,
         }
         localStorage.setItem("auth_session", JSON.stringify(sessionData))
 
         setAuthState({
-          user: result.user,
+          user: result.data.user,
           isLoading: false,
           isAuthenticated: true,
         })
 
         return { success: true }
       } else {
-        return { success: false, error: result.error || "Login gagal" }
+        return { success: false, error: result.error || result.message || "Login gagal" }
       }
     } catch (error) {
       console.error("Login error:", error)
@@ -102,8 +107,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      // Call API logout if token exists
+      if (typeof window !== "undefined" && localStorage.getItem("auth_token")) {
+        await apiClient.logout()
+      }
+    } catch (error) {
+      console.warn("API logout failed:", error)
+      // Continue with local logout anyway
+    }
+    
+    // Always clear local storage and state
     localStorage.removeItem("auth_session")
+    localStorage.removeItem("auth_token")
+    localStorage.removeItem("user")
+    
     setAuthState({
       user: null,
       isLoading: false,
