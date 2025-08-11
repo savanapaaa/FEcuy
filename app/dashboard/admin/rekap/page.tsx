@@ -533,34 +533,90 @@ export default function RekapPage() {
     return dummySubmissions
   }
 
-  // Load submissions from localStorage - show ALL completed submissions
-  const loadSubmissions = () => {
+  // Load submissions from server first, fallback to localStorage
+  const loadSubmissions = async () => {
     try {
-      const savedSubmissions = localStorage.getItem("submissions")
-      let allSubmissions: Submission[] = []
-
-      if (savedSubmissions) {
-        const parsedSubmissions: Submission[] = JSON.parse(savedSubmissions)
-
-        // Show all submissions that have been completed (validated)
-        // This includes submissions that have workflowStage as "completed"
-        const completedSubmissions = parsedSubmissions.filter((sub: Submission) => {
-          // Show submissions that have been validated (completed workflow)
-          return sub.workflowStage === "completed" && sub.isOutputValidated
-        })
-
-        allSubmissions = completedSubmissions
+      setIsLoading(true)
+      console.log("🔄 Loading completed submissions from server...")
+      
+      // Try to load from server first
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions?status=completed`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log("✅ Completed submissions loaded from server")
+        
+        if (data.success && data.data) {
+          // Transform server data
+          const transformedSubmissions = data.data
+            .filter((sub: any) => sub.workflowStage === "completed" && sub.isOutputValidated)
+            .map((sub: any) => ({
+              ...sub,
+              id: sub.id?.toString() || sub.id,
+              tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : new Date(),
+              tanggalOrder: sub.tanggalOrder ? new Date(sub.tanggalOrder) : undefined,
+              lastModified: sub.lastModified ? new Date(sub.lastModified) : new Date(),
+            }))
+          
+          // Add dummy data for demonstration
+          const dummyData = generateDummyData()
+          const allSubmissions = [...transformedSubmissions, ...dummyData]
+          
+          setSubmissions(allSubmissions)
+          setFilteredSubmissions(allSubmissions)
+          
+          // Update cache
+          if (typeof window !== "undefined") {
+            localStorage.setItem("rekap_cache", JSON.stringify(allSubmissions))
+          }
+          
+          return
+        }
       }
-
-      // Add dummy data for demonstration
-      const dummyData = generateDummyData()
-      allSubmissions = [...allSubmissions, ...dummyData]
-
-      setSubmissions(allSubmissions)
-      setFilteredSubmissions(allSubmissions)
+      
+      throw new Error("Server not available")
+      
     } catch (error) {
-      console.error("Error loading submissions:", error)
-      showToast("Gagal memuat data submissions", "error")
+      console.error("❌ Failed to load from server, using cache:", error)
+      
+      // Fallback to localStorage cache
+      try {
+        // Try new cache format first
+        let savedSubmissions = localStorage.getItem("rekap_cache")
+        if (!savedSubmissions) {
+          // Fallback to old format
+          savedSubmissions = localStorage.getItem("submissions")
+        }
+        
+        let allSubmissions: Submission[] = []
+
+        if (savedSubmissions) {
+          const parsedSubmissions: Submission[] = JSON.parse(savedSubmissions)
+
+          // Show all submissions that have been completed (validated)
+          const completedSubmissions = parsedSubmissions.filter((sub: Submission) => {
+            return sub.workflowStage === "completed" && sub.isOutputValidated
+          })
+
+          allSubmissions = completedSubmissions
+        }
+
+        // Add dummy data for demonstration
+        const dummyData = generateDummyData()
+        allSubmissions = [...allSubmissions, ...dummyData]
+
+        setSubmissions(allSubmissions)
+        setFilteredSubmissions(allSubmissions)
+        
+      } catch (cacheError) {
+        console.error("❌ Failed to load from cache:", cacheError)
+        showToast("Gagal memuat data submissions", "error")
+        
+        // Last resort: use dummy data only
+        const dummyData = generateDummyData()
+        setSubmissions(dummyData)
+        setFilteredSubmissions(dummyData)
+      }
     } finally {
       setIsLoading(false)
     }

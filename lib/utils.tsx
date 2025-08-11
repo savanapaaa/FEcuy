@@ -19,7 +19,12 @@ export const saveSubmissionsToStorage = (submissions: any[]) => {
 export const loadSubmissionsFromStorage = () => {
   try {
     const saved = localStorage.getItem("submissions")
-    return saved ? JSON.parse(saved) : []
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // Ensure we always return an array
+      return Array.isArray(parsed) ? parsed : []
+    }
+    return []
   } catch (error) {
     console.error("Error loading submissions from storage:", error)
     return []

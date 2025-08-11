@@ -73,9 +73,12 @@ class ApiClient {
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
         ...(this.token && { Authorization: `Bearer ${this.token}` }),
         ...options.headers,
       },
+      credentials: 'omit', // Don't send credentials for cross-origin requests
+      mode: 'cors',
       ...options,
     }
 
@@ -395,13 +398,23 @@ class ApiClient {
         body: JSON.stringify(data),
       })
       
-      if (response.success) {
+      if (response.success && response.data) {
         console.log("✅ Submission created successfully on server")
         
-        // Update local cache with server response
-        const submissions = loadSubmissionsFromStorage()
-        submissions.push(response.data)
-        saveSubmissionsToStorage(submissions)
+        // Update local cache with server response - with safety check
+        try {
+          const submissions = loadSubmissionsFromStorage()
+          if (Array.isArray(submissions)) {
+            submissions.push(response.data)
+            saveSubmissionsToStorage(submissions)
+          } else {
+            // If submissions is not an array, create new array
+            saveSubmissionsToStorage([response.data])
+          }
+        } catch (storageError) {
+          console.warn("⚠️ Failed to update local cache:", storageError)
+          // Don't throw error for storage issues - submission was successful on server
+        }
       }
       
       return response
@@ -422,15 +435,22 @@ class ApiClient {
         body: JSON.stringify(data),
       })
       
-      if (response.success) {
+      if (response.success && response.data) {
         console.log(`✅ Submission ${id} updated successfully on server`)
         
-        // Update local cache with server response
-        const submissions = loadSubmissionsFromStorage()
-        const index = submissions.findIndex((s: any) => s.id.toString() === id)
-        if (index !== -1) {
-          submissions[index] = response.data
-          saveSubmissionsToStorage(submissions)
+        // Update local cache with server response - with safety check
+        try {
+          const submissions = loadSubmissionsFromStorage()
+          if (Array.isArray(submissions)) {
+            const index = submissions.findIndex((s: any) => s.id.toString() === id)
+            if (index !== -1) {
+              submissions[index] = response.data
+              saveSubmissionsToStorage(submissions)
+            }
+          }
+        } catch (storageError) {
+          console.warn("⚠️ Failed to update local cache:", storageError)
+          // Don't throw error for storage issues - update was successful on server
         }
       }
       
