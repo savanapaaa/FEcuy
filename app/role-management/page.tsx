@@ -37,10 +37,10 @@ import Swal from "sweetalert2"
 interface User {
   id: number
   name: string
+  username: string
   email: string
-  phone: string
+  password?: string
   role: "admin" | "reviewer" | "validator" | "user"
-  status: "active" | "inactive"
   createdAt: string
   lastLogin?: string
   permissions: string[]
@@ -60,26 +60,20 @@ const roleIcons = {
   user: UserCheck,
 }
 
-const statusColors = {
-  active: "bg-green-100 text-green-800 border-green-200",
-  inactive: "bg-red-100 text-red-800 border-red-200",
-}
-
 export default function RoleManagementPage() {
   const router = useRouter()
   const isMobile = useMobile()
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState<string>("all")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
     name: "",
+    username: "",
     email: "",
-    phone: "",
+    password: "",
     role: "user" as User["role"],
-    status: "active" as User["status"],
     permissions: [] as string[],
   })
 
@@ -89,10 +83,9 @@ export default function RoleManagementPage() {
       {
         id: 1,
         name: "Admin Utama",
+        username: "admin_utama",
         email: "admin@diskominfo.go.id",
-        phone: "081234567890",
         role: "admin",
-        status: "active",
         createdAt: "2024-01-15",
         lastLogin: "2024-01-20",
         permissions: ["create", "read", "update", "delete", "manage_users"],
@@ -100,10 +93,9 @@ export default function RoleManagementPage() {
       {
         id: 2,
         name: "Reviewer Content",
+        username: "reviewer_content",
         email: "reviewer@diskominfo.go.id",
-        phone: "081234567891",
         role: "reviewer",
-        status: "active",
         createdAt: "2024-01-16",
         lastLogin: "2024-01-19",
         permissions: ["read", "review_content"],
@@ -111,10 +103,9 @@ export default function RoleManagementPage() {
       {
         id: 3,
         name: "Validator Output",
+        username: "validator_output",
         email: "validator@diskominfo.go.id",
-        phone: "081234567892",
         role: "validator",
-        status: "active",
         createdAt: "2024-01-17",
         lastLogin: "2024-01-18",
         permissions: ["read", "validate_output"],
@@ -122,10 +113,9 @@ export default function RoleManagementPage() {
       {
         id: 4,
         name: "User Biasa",
+        username: "user_biasa",
         email: "user@diskominfo.go.id",
-        phone: "081234567893",
         role: "user",
-        status: "inactive",
         createdAt: "2024-01-18",
         permissions: ["read"],
       },
@@ -138,15 +128,14 @@ export default function RoleManagementPage() {
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = roleFilter === "all" || user.role === roleFilter
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter
-    return matchesSearch && matchesRole && matchesStatus
+    return matchesSearch && matchesRole
   })
 
   const handleAddUser = async () => {
-    if (!newUser.name || !newUser.email) {
+    if (!newUser.name || !newUser.username || !newUser.email || !newUser.password) {
       await Swal.fire({
         title: "Data Tidak Lengkap",
-        text: "Nama dan email harus diisi",
+        text: "Nama, username, email, dan password harus diisi",
         icon: "warning",
         confirmButtonColor: "#f59e0b",
       })
@@ -163,10 +152,10 @@ export default function RoleManagementPage() {
     setUsers([...users, user])
     setNewUser({
       name: "",
+      username: "",
       email: "",
-      phone: "",
+      password: "",
       role: "user",
-      status: "active",
       permissions: [],
     })
     setIsAddDialogOpen(false)
@@ -183,10 +172,10 @@ export default function RoleManagementPage() {
     setEditingUser(user)
     setNewUser({
       name: user.name,
+      username: user.username,
       email: user.email,
-      phone: user.phone,
+      password: "", // Don't show existing password
       role: user.role,
-      status: user.status,
       permissions: user.permissions,
     })
   }
@@ -194,18 +183,32 @@ export default function RoleManagementPage() {
   const handleUpdateUser = async () => {
     if (!editingUser) return
 
-    const updatedUsers = users.map((user) =>
-      user.id === editingUser.id ? { ...user, ...newUser, permissions: getDefaultPermissions(newUser.role) } : user,
-    )
+    const updatedUserData: Partial<User> = {
+      ...newUser,
+      permissions: getDefaultPermissions(newUser.role),
+    }
 
-    setUsers(updatedUsers)
+    // Only update password if a new one was provided
+    if (!newUser.password) {
+      const { password, ...dataWithoutPassword } = updatedUserData
+      const updatedUsers = users.map((user) =>
+        user.id === editingUser.id ? { ...user, ...dataWithoutPassword } : user,
+      )
+      setUsers(updatedUsers)
+    } else {
+      const updatedUsers = users.map((user) =>
+        user.id === editingUser.id ? { ...user, ...updatedUserData } : user,
+      )
+      setUsers(updatedUsers)
+    }
+
     setEditingUser(null)
     setNewUser({
       name: "",
+      username: "",
       email: "",
-      phone: "",
+      password: "",
       role: "user",
-      status: "active",
       permissions: [],
     })
 
@@ -238,19 +241,6 @@ export default function RoleManagementPage() {
         confirmButtonColor: "#10b981",
       })
     }
-  }
-
-  const toggleUserStatus = async (user: User) => {
-    const newStatus = user.status === "active" ? "inactive" : "active"
-    const updatedUsers = users.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u))
-    setUsers(updatedUsers)
-
-    await Swal.fire({
-      title: `User ${newStatus === "active" ? "Diaktifkan" : "Dinonaktifkan"}`,
-      text: `${user.name} telah ${newStatus === "active" ? "diaktifkan" : "dinonaktifkan"}`,
-      icon: "success",
-      confirmButtonColor: "#10b981",
-    })
   }
 
   const getDefaultPermissions = (role: User["role"]): string[] => {
@@ -327,7 +317,7 @@ export default function RoleManagementPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8"
+          className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8"
         >
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardContent className="p-3 sm:p-4 lg:p-6">
@@ -361,28 +351,13 @@ export default function RoleManagementPage() {
             <CardContent className="p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Aktif</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Reviewer</p>
                   <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    {users.filter((u) => u.status === "active").length}
+                    {users.filter((u) => u.role === "reviewer").length}
                   </p>
                 </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Tidak Aktif</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-                    {users.filter((u) => u.status === "inactive").length}
-                  </p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <UserX className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -417,16 +392,6 @@ export default function RoleManagementPage() {
                       <SelectItem value="reviewer">Reviewer</SelectItem>
                       <SelectItem value="validator">Validator</SelectItem>
                       <SelectItem value="user">User</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full sm:w-[140px] border-gray-200">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Semua Status</SelectItem>
-                      <SelectItem value="active">Aktif</SelectItem>
-                      <SelectItem value="inactive">Tidak Aktif</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -470,25 +435,13 @@ export default function RoleManagementPage() {
                                 <p className="text-sm text-gray-600">{user.email}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Switch
-                                checked={user.status === "active"}
-                                onCheckedChange={() => toggleUserStatus(user)}
-                                size="sm"
-                              />
-                            </div>
                           </div>
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex gap-2">
                               <Badge className={cn("text-xs", roleColors[user.role])}>{user.role}</Badge>
-                              <Badge className={cn("text-xs", statusColors[user.status])}>{user.status}</Badge>
                             </div>
                           </div>
                           <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{user.phone}</span>
-                            </div>
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               <span>{formatDate(user.createdAt)}</span>
@@ -521,8 +474,6 @@ export default function RoleManagementPage() {
                       <tr>
                         <th className="text-left p-4 font-semibold text-gray-900">User</th>
                         <th className="text-left p-4 font-semibold text-gray-900">Role</th>
-                        <th className="text-left p-4 font-semibold text-gray-900">Status</th>
-                        <th className="text-left p-4 font-semibold text-gray-900">Kontak</th>
                         <th className="text-left p-4 font-semibold text-gray-900">Bergabung</th>
                         <th className="text-left p-4 font-semibold text-gray-900">Login Terakhir</th>
                         <th className="text-center p-4 font-semibold text-gray-900">Aksi</th>
@@ -554,28 +505,6 @@ export default function RoleManagementPage() {
                               </td>
                               <td className="p-4">
                                 <Badge className={cn("text-xs", roleColors[user.role])}>{user.role}</Badge>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-2">
-                                  <Badge className={cn("text-xs", statusColors[user.status])}>{user.status}</Badge>
-                                  <Switch
-                                    checked={user.status === "active"}
-                                    onCheckedChange={() => toggleUserStatus(user)}
-                                    size="sm"
-                                  />
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                                    <Mail className="h-3 w-3" />
-                                    <span>{user.email}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                                    <Phone className="h-3 w-3" />
-                                    <span>{user.phone}</span>
-                                  </div>
-                                </div>
                               </td>
                               <td className="p-4">
                                 <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -636,10 +565,10 @@ export default function RoleManagementPage() {
               setEditingUser(null)
               setNewUser({
                 name: "",
+                username: "",
                 email: "",
-                phone: "",
+                password: "",
                 role: "user",
-                status: "active",
                 permissions: [],
               })
             }
@@ -663,6 +592,15 @@ export default function RoleManagementPage() {
                 />
               </div>
               <div>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={newUser.username}
+                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                  placeholder="Masukkan username"
+                />
+              </div>
+              <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -673,12 +611,13 @@ export default function RoleManagementPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Nomor Telepon</Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
-                  id="phone"
-                  value={newUser.phone}
-                  onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                  placeholder="Masukkan nomor telepon"
+                  id="password"
+                  type="password"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  placeholder={editingUser ? "Kosongkan jika tidak ingin mengubah password" : "Masukkan password"}
                 />
               </div>
               <div>
@@ -698,21 +637,6 @@ export default function RoleManagementPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={newUser.status}
-                  onValueChange={(value: User["status"]) => setNewUser({ ...newUser, status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Aktif</SelectItem>
-                    <SelectItem value="inactive">Tidak Aktif</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <div className="flex gap-3 pt-4">
               <Button
@@ -722,10 +646,10 @@ export default function RoleManagementPage() {
                   setEditingUser(null)
                   setNewUser({
                     name: "",
+                    username: "",
                     email: "",
-                    phone: "",
+                    password: "",
                     role: "user",
-                    status: "active",
                     permissions: [],
                   })
                 }}

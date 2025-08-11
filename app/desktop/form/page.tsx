@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -9,11 +9,13 @@ import { useAuth } from "@/hooks/use-auth"
 import DesktopForm from "@/components/forms/desktop/DesktopForm"
 import { DiskomInfoLoading } from "@/components/global/diskominfo-loading"
 import { useResponsiveRedirect } from "@/hooks/use-responsive-redirect"
+import { showUnsavedFormAlert } from "@/lib/sweetalert-utils"
 
 export default function DesktopFormPage() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const [isInitialized, setIsInitialized] = useState(false)
+  const [hasFormData, setHasFormData] = useState<(() => boolean) | null>(null)
 
   // Disable responsive redirect if in edit mode to prevent redirect loops
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
@@ -35,6 +37,58 @@ export default function DesktopFormPage() {
     }
   }, [user, isLoading, router])
 
+  // Add browser navigation protection
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasFormData && hasFormData()) {
+        e.preventDefault()
+        e.returnValue = "Data yang sudah Anda isi akan hilang. Yakin ingin keluar?"
+        return "Data yang sudah Anda isi akan hilang. Yakin ingin keluar?"
+      }
+    }
+
+    const handlePopState = async (e: PopStateEvent) => {
+      if (hasFormData && hasFormData()) {
+        e.preventDefault()
+        const result = await showUnsavedFormAlert()
+        if (result.isConfirmed) {
+          window.history.back()
+        } else {
+          // Push current state back to prevent navigation
+          window.history.pushState(null, "", window.location.href)
+        }
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    window.addEventListener("popstate", handlePopState)
+
+    // Push current state to enable popstate detection
+    window.history.pushState(null, "", window.location.href)
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+      window.removeEventListener("popstate", handlePopState)
+    }
+  }, [hasFormData])
+
+  // Handle back navigation with form data check
+  const handleBackClick = async () => {
+    if (hasFormData && hasFormData()) {
+      const result = await showUnsavedFormAlert()
+      if (result.isConfirmed) {
+        router.push("/desktop")
+      }
+    } else {
+      router.push("/desktop")
+    }
+  }
+
+  // Callback to receive hasFormData function from DesktopForm
+  const handleFormDataCheck = useCallback((hasDataFn: () => boolean) => {
+    setHasFormData(() => () => hasDataFn())
+  }, [])
+
   if (isLoading || !isInitialized) {
     return <DiskomInfoLoading />
   }
@@ -53,11 +107,10 @@ export default function DesktopFormPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/desktop")}
+                onClick={handleBackClick}
                 className="flex items-center space-x-2"
               >
                 <ArrowLeft className="h-4 w-4" />
-                <span>Kembali ke Dashboard</span>
               </Button>
               <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <Monitor className="h-5 w-5 text-white" />
@@ -65,16 +118,6 @@ export default function DesktopFormPage() {
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Form Pengajuan</h1>
                 <p className="text-sm text-gray-600">Platform Desktop</p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">{user?.username?.charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="hidden sm:block">
-                <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                <p className="text-xs text-gray-600 capitalize">{user?.role}</p>
               </div>
             </div>
           </div>
@@ -85,7 +128,7 @@ export default function DesktopFormPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           {/* Desktop Form Component */}
-          <DesktopForm />
+          <DesktopForm onFormDataCheck={handleFormDataCheck} />
         </motion.div>
       </main>
     </div>

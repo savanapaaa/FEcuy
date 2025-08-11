@@ -294,7 +294,7 @@ export const useFormHandler = () => {
     return contentTypeConfig[type as keyof typeof contentTypeConfig]?.icon || "📄"
   }
 
-  // Enhanced validation functions
+  // Enhanced validation functions with no comtab check
   const getStepValidation = (step: number): boolean => {
     switch (step) {
       case 1:
@@ -332,13 +332,24 @@ export const useFormHandler = () => {
 
       case 4:
         // Step 4: Final submission - credentials and bukti mengetahui required
-        return !!(
+        const basicValidation = !!(
           formData.buktiMengetahui &&
           formData.noComtab &&
           formData.noComtab.trim() !== "" &&
           formData.pinSandi &&
           formData.pinSandi.trim() !== ""
         )
+        
+        // Check for duplicate no comtab (only for new submissions)
+        if (basicValidation && !isEditMode && formData.noComtab) {
+          const isDuplicate = isNoComtabExists(formData.noComtab)
+          if (isDuplicate) {
+            console.warn("🚨 Duplicate no comtab detected:", formData.noComtab)
+            return false
+          }
+        }
+        
+        return basicValidation
 
       default:
         return false
@@ -348,6 +359,33 @@ export const useFormHandler = () => {
   // Check if all steps are valid for final submission
   const isSubmitDisabled = (): boolean => {
     return !(getStepValidation(1) && getStepValidation(2) && getStepValidation(3) && getStepValidation(4))
+  }
+
+  // Check if form has been filled with data
+  const hasFormData = () => {
+    // Check if any step has been filled
+    const step1HasData = formData.tema?.trim() || 
+                        formData.judul?.trim() || 
+                        formData.petugasPelaksana?.trim() || 
+                        formData.supervisor?.trim()
+
+    const step2HasData = selectedContentTypes.length > 0 || formData.contentItems.length > 0
+
+    const step3HasData = formData.contentItems.some(item => 
+      item.nama?.trim() || 
+      item.nomorSurat?.trim() || 
+      item.tanggalOrderMasuk || 
+      item.tanggalJadi || 
+      item.tanggalTayang ||
+      item.narasiText?.trim() ||
+      item.keterangan?.trim()
+    )
+
+    const step4HasData = formData.buktiMengetahui || 
+                        formData.noComtab?.trim() || 
+                        formData.pinSandi?.trim()
+
+    return !!(step1HasData || step2HasData || step3HasData || step4HasData)
   }
 
   // Get validation details for debugging
@@ -385,19 +423,64 @@ export const useFormHandler = () => {
           buktiMengetahui: !!formData.buktiMengetahui,
           noComtab: !!(formData.noComtab && formData.noComtab.trim() !== ""),
           pinSandi: !!(formData.pinSandi && formData.pinSandi.trim() !== ""),
+          isNoComtabUnique: !isEditMode ? !isNoComtabExists(formData.noComtab || "") : true,
         },
       },
     }
   }
 
-  // Credential generation
-  const generateCredentials = () => {
+  // Check if no comtab already exists
+  const isNoComtabExists = (noComtab: string): boolean => {
+    try {
+      // Check in localStorage submissions
+      const localSubmissions = JSON.parse(localStorage.getItem("formSubmissions") || "[]")
+      const existsInLocal = localSubmissions.some((submission: any) => 
+        submission.noComtab === noComtab && submission.id !== editingSubmissionId
+      )
+      
+      if (existsInLocal) {
+        return true
+      }
+
+      // TODO: In future, could also check with backend API
+      // const response = await fetch(`${API_URL}/submissions/check-comtab/${noComtab}`)
+      // return response.json().exists
+      
+      return false
+    } catch (error) {
+      console.error("Error checking no comtab:", error)
+      return false
+    }
+  }
+
+  // Generate unique no comtab
+  const generateUniqueNoComtab = (): string => {
     const now = new Date()
     const month = String(now.getMonth() + 1).padStart(2, "0")
     const year = now.getFullYear()
-    const randomNum = Math.floor(Math.random() * 9999) + 1
+    
+    let attempts = 0
+    let noComtab = ""
+    
+    do {
+      const randomNum = Math.floor(Math.random() * 9999) + 1
+      noComtab = `${String(randomNum).padStart(4, "0")}/IKP/${month}/${year}`
+      attempts++
+      
+      // Failsafe: if too many attempts, use timestamp
+      if (attempts > 100) {
+        const timestamp = Date.now().toString().slice(-4)
+        noComtab = `${timestamp}/IKP/${month}/${year}`
+        break
+      }
+    } while (isNoComtabExists(noComtab))
+    
+    return noComtab
+  }
 
-    const noComtab = `${String(randomNum).padStart(4, "0")}/IKP/${month}/${year}`
+  // Credential generation
+  const generateCredentials = () => {
+    const noComtab = generateUniqueNoComtab()
     const pinSandi = Math.random().toString(36).substring(2, 8).toUpperCase()
 
     updateFormData({ noComtab, pinSandi })
@@ -468,6 +551,9 @@ export const useFormHandler = () => {
     getStepValidation,
     isSubmitDisabled,
     getValidationDetails,
+    hasFormData,
+    isNoComtabExists,
+    generateUniqueNoComtab,
 
     // Edit mode
     setIsEditMode,

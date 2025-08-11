@@ -10,11 +10,23 @@ import StepOne from "./steps/StepOne"
 import StepTwo from "./steps/StepTwo"
 import StepThree from "./steps/StepThree"
 import StepFour from "./steps/StepFour"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
-export default function DesktopForm() {
+export default function DesktopForm({ onFormDataCheck }: { onFormDataCheck?: (hasData: () => boolean) => void }) {
   const formHandler = useFormHandler()
   const [isStepValid, setIsStepValid] = useState(false)
+
+  // Memoize the hasFormData function to prevent re-renders
+  const hasFormData = useCallback(() => {
+    return formHandler.hasFormData()
+  }, [formHandler.formData, formHandler.selectedContentTypes])
+
+  // Pass hasFormData function to parent component
+  useEffect(() => {
+    if (onFormDataCheck) {
+      onFormDataCheck(hasFormData)
+    }
+  }, [onFormDataCheck, hasFormData])
 
   // Update validation whenever form data or current step changes
   useEffect(() => {
@@ -56,6 +68,8 @@ export default function DesktopForm() {
             isStep4Valid={formHandler.getStepValidation(4)}
             generateCredentials={formHandler.generateCredentials}
             isEditMode={formHandler.isEditMode}
+            isNoComtabExists={formHandler.isNoComtabExists}
+            generateUniqueNoComtab={formHandler.generateUniqueNoComtab}
           />
         )
       default:

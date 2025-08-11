@@ -749,13 +749,13 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Mobile Header */}
+      {/* Header */}
       <motion.header
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0 z-50"
       >
-        <div className="px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
@@ -778,10 +778,10 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                 <History className="h-4 w-4 text-white" />
               </motion.div>
               <div className="flex-1">
-                <h1 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                   Riwayat Pengajuan
                 </h1>
-                <p className="text-xs text-gray-600">Kelola dan pantau pengajuan Anda</p>
+                <p className="text-xs sm:text-sm text-gray-600">Kelola dan pantau pengajuan Anda</p>
               </div>
             </motion.div>
 
@@ -795,9 +795,10 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStats(!showStats)}
-                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2"
+                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2 flex-shrink-0"
               >
-                <BarChart3 className="h-4 w-4" />
+                <BarChart3 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">{showStats ? "Hide" : "Show"}</span>
               </Button>
 
               <DropdownMenu>
@@ -805,15 +806,16 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2 bg-transparent"
+                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 p-2 bg-transparent flex-shrink-0"
                   >
-                    <MoreVertical className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-48 sm:w-56">
                   <DropdownMenuItem onClick={refreshData} disabled={isLoading}>
                     <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-                    Refresh
+                    Refresh Data
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setIsEditAccessDialogOpen(true)}>
                     <Edit className="h-4 w-4 mr-2" />
@@ -831,167 +833,188 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
         </div>
       </motion.header>
 
-      <div className="space-y-4 pb-20">
-        {/* Mobile Statistics - Collapsible */}
+      <div className="space-y-4 sm:space-y-6 pb-20">
+        {/* Statistics Cards */}
         <AnimatePresence>
           {showStats && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="px-4 space-y-4 pt-4"
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6 pt-4"
             >
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 gap-3">
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-0 shadow-md">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <FileText className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-blue-900">{statistics.submissions.total}</p>
-                        <p className="text-xs text-blue-700">Total</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 border-0 shadow-md">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                        <CheckCircle2 className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-green-900">{statistics.submissions.completed}</p>
-                        <p className="text-xs text-green-700">Selesai</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-0 shadow-md">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg flex items-center justify-center">
-                        <Zap className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-yellow-900">
-                          {statistics.submissions.review + statistics.submissions.validation}
-                        </p>
-                        <p className="text-xs text-yellow-700">Proses</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-0 shadow-md">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <Rocket className="h-4 w-4 text-white" />
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-purple-900">{statistics.content.published}</p>
-                        <p className="text-xs text-purple-700">Tayang</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Workflow Statistics */}
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center px-1">
+                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-indigo-600" />
+                  Status Workflow
+                </h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {[
+                    {
+                      title: "Total Pengajuan",
+                      value: statistics.submissions.total,
+                      icon: FileText,
+                      color: "from-blue-500 to-blue-600",
+                      bgColor: "from-blue-50 to-blue-100",
+                      textColor: "text-blue-900",
+                      labelColor: "text-blue-700"
+                    },
+                    {
+                      title: "Selesai",
+                      value: statistics.submissions.completed,
+                      icon: CheckCircle2,
+                      color: "from-green-500 to-green-600",
+                      bgColor: "from-green-50 to-green-100",
+                      textColor: "text-green-900",
+                      labelColor: "text-green-700"
+                    },
+                    {
+                      title: "Dalam Proses",
+                      value: statistics.submissions.review + statistics.submissions.validation,
+                      icon: Zap,
+                      color: "from-yellow-500 to-yellow-600",
+                      bgColor: "from-yellow-50 to-yellow-100",
+                      textColor: "text-yellow-900",
+                      labelColor: "text-yellow-700"
+                    },
+                    {
+                      title: "Tayang",
+                      value: statistics.content.published,
+                      icon: Rocket,
+                      color: "from-purple-500 to-purple-600",
+                      bgColor: "from-purple-50 to-purple-100",
+                      textColor: "text-purple-900",
+                      labelColor: "text-purple-700"
+                    }
+                  ].map((card, index) => {
+                    const Icon = card.icon
+                    return (
+                      <motion.div
+                        key={card.title}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Card className={`bg-gradient-to-br ${card.bgColor} border-0 shadow-lg hover:shadow-xl transition-all duration-200`}>
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r ${card.color} rounded-lg flex items-center justify-center shadow-md`}>
+                                <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-lg sm:text-2xl font-bold ${card.textColor}`}>{card.value}</p>
+                              </div>
+                            </div>
+                            <p className={`text-xs sm:text-sm font-semibold ${card.labelColor} line-clamp-2`}>{card.title}</p>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    )
+                  })}
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Mobile Search */}
-        <div className="px-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Cari berdasarkan No. Comtab, judul..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-12 bg-white border-gray-200 focus:border-indigo-500"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 p-2"
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
-          </div>
+        {/* Search and Filters */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="bg-white/80 backdrop-blur-sm border-gray-200/50 shadow-lg">
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-4">
+                {/* Main Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Cari berdasarkan No. Comtab, judul..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-12 bg-white border-gray-200 focus:border-indigo-500"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 p-2"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Collapsible Filters */}
+                <AnimatePresence>
+                  {showFilters && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-3 pt-4 border-t border-gray-200"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Status Workflow</label>
+                          <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
+                            <SelectTrigger className="bg-white border-gray-200">
+                              <SelectValue placeholder="Pilih status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua Status</SelectItem>
+                              <SelectItem value="submitted">Dikirim</SelectItem>
+                              <SelectItem value="review">Review</SelectItem>
+                              <SelectItem value="validation">Validasi</SelectItem>
+                              <SelectItem value="completed">Selesai</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Tema</label>
+                          <Select value={filterTheme} onValueChange={(value: any) => setFilterTheme(value)}>
+                            <SelectTrigger className="bg-white border-gray-200">
+                              <SelectValue placeholder="Pilih tema" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua Tema</SelectItem>
+                              <SelectItem value="sosial">🏥 Sosial</SelectItem>
+                              <SelectItem value="ekonomi">💰 Ekonomi</SelectItem>
+                              <SelectItem value="lingkungan">🌱 Lingkungan</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFilters(false)}
+                          className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                        >
+                          <X className="h-4 w-4 mr-2" />
+                          Tutup Filter
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Mobile Filters - Collapsible */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="px-4 space-y-3"
-            >
-              <Card className="bg-gray-50 border-gray-200">
-                <CardContent className="p-4 space-y-3">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">Status Workflow</label>
-                    <Select value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Pilih status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="submitted">Dikirim</SelectItem>
-                        <SelectItem value="review">Review</SelectItem>
-                        <SelectItem value="validation">Validasi</SelectItem>
-                        <SelectItem value="completed">Selesai</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-700 mb-2 block">Tema</label>
-                    <Select value={filterTheme} onValueChange={(value: any) => setFilterTheme(value)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue placeholder="Pilih tema" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Semua Tema</SelectItem>
-                        <SelectItem value="sosial">🏥 Sosial</SelectItem>
-                        <SelectItem value="ekonomi">💰 Ekonomi</SelectItem>
-                        <SelectItem value="lingkungan">🌱 Lingkungan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFilters(false)}
-                    className="w-full border-gray-300"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Tutup Filter
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Results Count */}
-        <div className="px-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-sm text-gray-600">
-            Menampilkan {filteredAndSortedSubmissions.length} dari {submissions.length} pengajuan
+            Menampilkan <span className="font-semibold text-indigo-600">{filteredAndSortedSubmissions.length}</span> dari{" "}
+            <span className="font-semibold">{submissions.length}</span> pengajuan
           </p>
         </div>
 
         {/* Mobile Submissions List */}
-        <div className="px-4 space-y-3">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <AnimatePresence>
             {filteredAndSortedSubmissions.length === 0 ? (
               <motion.div
@@ -1000,7 +1023,7 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="text-center py-12"
               >
-                <Card className="bg-white border-gray-200 shadow-sm">
+                <Card className="bg-white/80 backdrop-blur-sm border-gray-200/50 shadow-lg">
                   <CardContent className="p-8">
                     <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Tidak ada pengajuan</h3>
@@ -1017,7 +1040,8 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                 </Card>
               </motion.div>
             ) : (
-              filteredAndSortedSubmissions.map((submission, index) => {
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+                {filteredAndSortedSubmissions.map((submission, index) => {
                 const isExpanded = expandedCards.has(submission.id)
                 const workflowStageInfo = getWorkflowStageInfo(submission.workflowStage || "submitted")
                 const contentItems = submission.contentItems || []
@@ -1035,7 +1059,7 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                     transition={{ delay: index * 0.05 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <Card className="bg-white/80 backdrop-blur-sm border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-200">
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 min-w-0">
@@ -1045,11 +1069,13 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                                 <FileText className="h-5 w-5 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <Badge className="bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 border-indigo-200 font-bold text-xs px-2 py-1">
+                                <h3 className="text-base font-bold text-gray-900 mb-1 truncate">
+                                  {submission.judul}
+                                </h3>
+                                <Badge className="bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 border-indigo-200 font-medium text-xs px-2 py-1">
                                   <Hash className="h-3 w-3 mr-1" />
                                   {submission.noComtab}
                                 </Badge>
-                                <p className="text-xs text-gray-500 mt-1">No. Comtab Dokumen</p>
                               </div>
                             </div>
 
@@ -1076,11 +1102,6 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                                 </Badge>
                               )}
                             </div>
-
-                            {/* Document Title */}
-                            <CardTitle className="text-base font-bold text-gray-900 line-clamp-2 mb-3">
-                              {submission.judul}
-                            </CardTitle>
 
                             {/* Document Details */}
                             <div className="grid grid-cols-2 gap-2 text-xs mb-3">
@@ -1139,8 +1160,6 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuItem onClick={() => shareSubmission(submission)}>
-                                  <Share2 className="h-4 w-4 mr-2" />
-                                  Bagikan
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => copyToClipboard(submission.noComtab)}>
                                   <Copy className="h-4 w-4 mr-2" />
@@ -1307,7 +1326,8 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
                     </Card>
                   </motion.div>
                 )
-              })
+                })}
+              </div>
             )}
           </AnimatePresence>
         </div>

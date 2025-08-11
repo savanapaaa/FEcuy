@@ -150,6 +150,8 @@ export const MobileForm = () => {
             updateFormData={formHandler.updateFormData}
             generateCredentials={formHandler.generateCredentials}
             isEditMode={formHandler.isEditMode}
+            isNoComtabExists={formHandler.isNoComtabExists}
+            generateUniqueNoComtab={formHandler.generateUniqueNoComtab}
           />
         )
       default:

@@ -36,6 +36,45 @@ export function useFormSubmission() {
     isEditMode = false,
     editingSubmissionId: number | null = null,
   ): Promise<SubmissionResult> => {
+    // Check for duplicate no comtab before showing confirmation (for new submissions)
+    if (!isEditMode && formData.noComtab) {
+      try {
+        const localSubmissions = JSON.parse(localStorage.getItem("formSubmissions") || "[]")
+        const isDuplicate = localSubmissions.some((submission: any) => 
+          submission.noComtab === formData.noComtab
+        )
+        
+        if (isDuplicate) {
+          await Swal.fire({
+            icon: "error",
+            title: "❌ No. Comtab Sudah Ada",
+            html: `
+              <div class="text-center space-y-3">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p class="text-red-800 font-semibold">No. Comtab: ${formData.noComtab}</p>
+                  <p class="text-red-600">Nomor ini sudah digunakan oleh pengajuan lain.</p>
+                </div>
+                <p class="text-gray-600">Silakan generate ulang kredensial atau gunakan nomor yang berbeda.</p>
+              </div>
+            `,
+            confirmButtonText: "OK",
+            confirmButtonColor: "#dc2626",
+            customClass: {
+              popup: "rounded-xl shadow-2xl",
+              confirmButton: "rounded-lg px-6 py-2",
+            },
+          })
+          
+          return {
+            success: false,
+            error: "No. Comtab sudah digunakan"
+          }
+        }
+      } catch (error) {
+        console.error("Error checking duplicate no comtab:", error)
+      }
+    }
+
     // Show confirmation popup before submitting
     if (!isEditMode) {
       const confirmResult = await Swal.fire({

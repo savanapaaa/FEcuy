@@ -130,60 +130,7 @@ export default function StepThree({ formData, updateContentItem }: StepThreeProp
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Header Section */}
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="mb-8"
-      >
-        <Card className="bg-white/80 backdrop-blur-xl border-white/30 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-          <CardContent className="p-8">
-            <div className="flex items-center space-x-4 mb-6">
-              <motion.div
-                className="relative"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              >
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Layers className="h-8 w-8 text-white" />
-                </div>
-                <motion.div
-                  className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-full flex items-center justify-center"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-                >
-                  <Sparkles className="h-3 w-3 text-white" />
-                </motion.div>
-              </motion.div>
-              <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  Detail Konten
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Lengkapi informasi detail untuk setiap konten yang akan diproduksi
-                </p>
-              </div>
-            </div>
-            {/* Progress Indicator */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100"
-            >
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-                  <span className="text-indigo-700 font-medium">Langkah 3 dari 4</span>
-                </div>
-                <span className="text-gray-600">Detail Konten</span>
-              </div>
-            </motion.div>
-          </CardContent>
-        </Card>
-      </motion.div>
+      
 
       <div className="space-y-8">
         {formData.contentItems.map((item, index) => {

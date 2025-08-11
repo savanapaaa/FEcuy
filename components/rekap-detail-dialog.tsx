@@ -45,7 +45,6 @@ import {
   User,
   Trash2,
   Ban,
-  Edit,
   PlayCircle,
 } from "lucide-react"
 import { motion } from "framer-motion"
@@ -121,10 +120,8 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
   const [isTakedownDialogOpen, setIsTakedownDialogOpen] = useState(false)
   const [takedownReason, setTakedownReason] = useState("")
   const [selectedItemId, setSelectedItemId] = useState<string>("")
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("overview")
   const [expandedContent, setExpandedContent] = useState<string | null>(null)
-  const [editingContent, setEditingContent] = useState<string | null>(null)
   const [previewModal, setPreviewModal] = useState({
     isOpen: false,
     file: null as any,
@@ -713,15 +710,6 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
                 </DialogDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="flex items-center space-x-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span>Edit</span>
-                </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -1076,22 +1064,6 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
               <Ban className="h-4 w-4 mr-2" />
               Takedown
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog Placeholder */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Edit className="h-5 w-5 text-blue-600" />
-              <span>Edit Dokumen</span>
-            </DialogTitle>
-            <DialogDescription>Fitur edit akan segera tersedia.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

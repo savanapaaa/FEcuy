@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import Swal from 'sweetalert2'
-import { showReviewSuccessAlert, showErrorAlert } from '@/lib/sweetalert-utils'
+import { showReviewSuccessAlert, showDocumentReviewedSuccessAlert, showAllRejectedAlert, showSaveReviewConfirmation, showErrorAlert, showConfirmationAlert } from '@/lib/sweetalert-utils'
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -46,7 +46,6 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import PreviewModal from "./preview-modal"
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage } from "@/lib/utils"
-import { MobileContentReviewDialog } from "./mobile-content-review-dialog"
 
 // Helper function to determine workflow stage
 const getWorkflowStage = (submission: any) => {
@@ -626,7 +625,6 @@ export default function ContentReviewDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showReviewSummary, setShowReviewSummary] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
 
   // Preview modal state
   const [previewModal, setPreviewModal] = useState({
@@ -649,17 +647,6 @@ export default function ContentReviewDialog({
       setPreviewModal({ isOpen: false, file: null, url: "", type: "", fileName: "", title: "" })
     }
   }, [isOpen])
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
-
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
 
   if (!submission) return null
 
@@ -692,20 +679,6 @@ export default function ContentReviewDialog({
           </motion.div>
         </DialogContent>
       </Dialog>
-    )
-  }
-
-  // Use mobile dialog on mobile devices
-  if (isMobile) {
-    return (
-      <MobileContentReviewDialog
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
-        submission={submission}
-        contentItem={contentItem}
-        onUpdate={onUpdate}
-        onToast={onToast}
-      />
     )
   }
 
@@ -817,16 +790,88 @@ export default function ContentReviewDialog({
   // Handle review submission - now shows summary first
   const handleReviewSubmit = async () => {
     if (!canSubmit) {
-      onToast("Harap review semua konten dan berikan alasan untuk konten yang ditolak", "error")
+      await Swal.fire({
+        title: "Review Belum Lengkap",
+        text: "Harap review semua konten dan berikan alasan untuk konten yang ditolak",
+        icon: "warning",
+        confirmButtonText: "OK",
+        customClass: {
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-yellow-500 to-amber-600",
+        },
+      })
       return
     }
 
-    // Show review summary confirmation
-    setShowReviewSummary(true)
+    // Calculate review statistics for confirmation
+    const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
+    const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+    const totalItems = submission.contentItems?.length || 0
+
+    // Show confirmation dialog with review summary
+    const result = await Swal.fire({
+      title: "Konfirmasi Review",
+      html: `
+        <div class="text-left space-y-3">
+          <p class="text-gray-700 mb-4">Apakah Anda yakin ingin menyimpan hasil review ini?</p>
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
+            <div class="flex items-center space-x-2 text-green-700">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">${approvedCount} Konten Disetujui</span>
+            </div>
+          </div>
+          <div class="bg-gradient-to-r from-red-50 to-rose-50 p-3 rounded-lg border border-red-200">
+            <div class="flex items-center space-x-2 text-red-700">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">${rejectedCount} Konten Ditolak</span>
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 mt-3">
+            Total ${totalItems} konten telah direview
+          </div>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Simpan Review",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rounded-2xl",
+        confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600",
+        cancelButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-gray-400 to-gray-500",
+        htmlContainer: "text-sm",
+      },
+      buttonsStyling: false,
+    })
+
+    if (result.isConfirmed) {
+      // Show review summary confirmation
+      setShowReviewSummary(true)
+    }
   }
 
   // Handle confirmed review submission
   const handleConfirmedReviewSubmit = async () => {
+    // Show loading
+    Swal.fire({
+      title: "Memproses Review",
+      text: "Mohon tunggu sebentar...",
+      icon: "info",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      customClass: {
+        popup: "rounded-2xl",
+      },
+      didOpen: () => {
+        Swal.showLoading()
+      },
+    })
+
     setIsSubmitting(true)
 
     try {
@@ -868,11 +913,52 @@ export default function ContentReviewDialog({
 
       const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
       const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+      const totalItems = submission.contentItems?.length || 0
 
-      // Show success SweetAlert
-      await showReviewSuccessAlert(approvedCount, rejectedCount)
+      // Show success message with consistent styling
+      await Swal.fire({
+        title: "Review Berhasil!",
+        html: `
+          <div class="text-center space-y-4">
+            <div class="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <p class="text-gray-700 text-base">Review konten telah diselesaikan dengan hasil:</p>
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+              <div class="flex justify-between items-center text-sm">
+                <div class="flex items-center space-x-2 text-green-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span class="font-medium">${approvedCount} Konten Disetujui</span>
+                </div>
+                <div class="flex items-center space-x-2 text-red-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span class="font-medium">${rejectedCount} Konten Ditolak</span>
+                </div>
+              </div>
+            </div>
+            ${approvedCount > 0 ? 
+              '<div class="bg-gradient-to-r from-yellow-50 to-amber-50 p-3 rounded-lg border border-yellow-200 mt-3"><p class="text-yellow-700 text-sm font-medium">Konten yang disetujui akan dilanjutkan ke tahap validasi</p></div>' : 
+              '<div class="bg-gradient-to-r from-gray-50 to-slate-50 p-3 rounded-lg border border-gray-200 mt-3"><p class="text-gray-700 text-sm font-medium">Semua konten ditolak, proses review selesai</p></div>'
+            }
+          </div>
+        `,
+        icon: "success",
+        confirmButtonText: approvedCount > 0 ? "Lanjut ke Validasi" : "Tutup",
+        timer: 5000,
+        timerProgressBar: true,
+        customClass: {
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600",
+          htmlContainer: "text-sm",
+        },
+      })
 
-      onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
       setIsSubmitting(false)
       setShowReviewSummary(false)
 
@@ -885,13 +971,15 @@ export default function ContentReviewDialog({
     } catch (error) {
       console.error('Error submitting review:', error)
       
-      // Show error SweetAlert
       await Swal.fire({
-        title: 'Gagal Menyimpan Review',
-        text: 'Terjadi kesalahan saat menyimpan review. Silakan coba lagi.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#dc2626'
+        title: "Terjadi Kesalahan",
+        text: "Gagal menyimpan review. Silakan coba lagi.",
+        icon: "error",
+        confirmButtonText: "OK",
+        customClass: {
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600",
+        },
       })
       
       setIsSubmitting(false)
