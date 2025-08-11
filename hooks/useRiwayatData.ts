@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import * as apiClient from "@/lib/api-client"
 
 export interface RiwayatItem {
   id: string
@@ -36,6 +37,22 @@ export interface RiwayatStats {
   approved: number
   rejected: number
   draft: number
+}
+
+// Helper function to map server status to frontend status
+const mapServerStatus = (serverStatus: string): RiwayatItem['status'] => {
+  const statusMap: Record<string, RiwayatItem['status']> = {
+    'draft': 'draft',
+    'submitted': 'submitted', 
+    'pending': 'review',
+    'review': 'review',
+    'approved': 'approved',
+    'rejected': 'rejected',
+    'completed': 'approved',
+    'published': 'approved'
+  }
+  
+  return statusMap[serverStatus?.toLowerCase()] || 'draft'
 }
 
 // Mock data for development
@@ -147,34 +164,100 @@ export function useRiwayatData() {
     search: "",
   })
 
-  // Load data (in real app, this would be an API call)
+  // Load data from server first, fallback to localStorage
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
+        setError(null)
 
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Try to load from localStorage first
-        const storedData = localStorage.getItem("form_submissions")
-        if (storedData) {
-          const parsedData = JSON.parse(storedData)
-          // Transform stored data to match RiwayatItem interface
-          const transformedData = parsedData.map((item: any) => ({
-            ...item,
-            contentItems: item.contentItems || [],
-            status: item.status || "draft",
+        console.log("🔄 Loading riwayat data from server...")
+        
+        // Try to load from server first
+        const response = await apiClient.getSubmissions()
+        
+        if (response.success && response.data) {
+          console.log("✅ Riwayat data loaded from server")
+          
+          // Transform server data to match RiwayatItem interface
+          const transformedData = response.data.map((item: any) => ({
+            id: item.id?.toString() || Math.random().toString(),
+            tema: item.tema || "Tidak ada tema",
+            judul: item.judul || "Tidak ada judul", 
+            petugasPelaksana: item.petugasPelaksana || "Tidak diketahui",
+            tanggalPengajuan: item.created_at || item.createdAt || new Date().toISOString(),
+            status: mapServerStatus(item.status || item.workflowStage) as RiwayatItem['status'],
+            contentItems: (item.contentItems || []).map((content: any) => ({
+              id: content.id?.toString() || Math.random().toString(),
+              type: content.type || "artikel",
+              title: content.nama || content.title || "Konten",
+              description: content.keterangan || content.description || "",
+              status: content.status || "pending",
+              feedback: content.feedback || "",
+              createdAt: content.created_at || content.createdAt || new Date().toISOString(),
+              updatedAt: content.updated_at || content.updatedAt || new Date().toISOString(),
+            })),
+            createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+            updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
           }))
-          setData([...transformedData, ...mockRiwayatData])
+          
+          setData(transformedData)
+          
+          // Update localStorage cache
+          if (typeof window !== "undefined") {
+            localStorage.setItem("riwayat_cache", JSON.stringify(transformedData))
+          }
+          
         } else {
-          setData(mockRiwayatData)
+          throw new Error(response.message || "Failed to load from server")
         }
 
-        setError(null)
       } catch (err) {
-        setError("Gagal memuat data riwayat")
-        setData(mockRiwayatData) // Fallback to mock data
+        console.error("❌ Failed to load from server:", err)
+        setError("Server tidak tersedia, menggunakan data cache")
+        
+        // Fallback to localStorage cache
+        try {
+          const cachedData = localStorage.getItem("riwayat_cache")
+          if (cachedData) {
+            console.log("⚠️ Using cached riwayat data")
+            setData(JSON.parse(cachedData))
+          } else {
+            // If no cache, try old localStorage format
+            const storedData = localStorage.getItem("form_submissions")
+            if (storedData) {
+              const parsedData = JSON.parse(storedData)
+              const transformedData = parsedData.map((item: any) => ({
+                id: item.id?.toString() || Math.random().toString(),
+                tema: item.tema || "Tidak ada tema",
+                judul: item.judul || "Tidak ada judul",
+                petugasPelaksana: item.petugasPelaksana || "Tidak diketahui",
+                tanggalPengajuan: item.createdAt || new Date().toISOString(),
+                status: (item.status || "draft") as RiwayatItem['status'],
+                contentItems: (item.contentItems || []).map((content: any) => ({
+                  id: content.id?.toString() || Math.random().toString(),
+                  type: content.type || "artikel",
+                  title: content.nama || content.title || "Konten",
+                  description: content.keterangan || content.description || "",
+                  status: content.status || "pending",
+                  feedback: content.feedback || "",
+                  createdAt: content.createdAt || new Date().toISOString(),
+                  updatedAt: content.updatedAt || new Date().toISOString(),
+                })),
+                createdAt: item.createdAt || new Date().toISOString(),
+                updatedAt: item.updatedAt || new Date().toISOString(),
+              }))
+              setData(transformedData)
+            } else {
+              // Last resort: use mock data
+              console.log("📋 Using mock data as last resort")
+              setData(mockRiwayatData)
+            }
+          }
+        } catch (cacheErr) {
+          console.error("❌ Failed to load from cache:", cacheErr)
+          setData(mockRiwayatData)
+        }
       } finally {
         setLoading(false)
       }
@@ -254,23 +337,59 @@ export function useRiwayatData() {
   const refreshData = async () => {
     setLoading(true)
     try {
-      // Simulate API refresh
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      const storedData = localStorage.getItem("form_submissions")
-      if (storedData) {
-        const parsedData = JSON.parse(storedData)
-        const transformedData = parsedData.map((item: any) => ({
-          ...item,
-          contentItems: item.contentItems || [],
-          status: item.status || "draft",
+      console.log("🔄 Refreshing riwayat data from server...")
+      
+      // Reload from server
+      const response = await apiClient.getSubmissions()
+      
+      if (response.success && response.data) {
+        console.log("✅ Riwayat data refreshed from server")
+        
+        const transformedData = response.data.map((item: any) => ({
+          id: item.id?.toString() || Math.random().toString(),
+          tema: item.tema || "Tidak ada tema",
+          judul: item.judul || "Tidak ada judul",
+          petugasPelaksana: item.petugasPelaksana || "Tidak diketahui",
+          tanggalPengajuan: item.created_at || item.createdAt || new Date().toISOString(),
+          status: mapServerStatus(item.status || item.workflowStage) as RiwayatItem['status'],
+          contentItems: (item.contentItems || []).map((content: any) => ({
+            id: content.id?.toString() || Math.random().toString(),
+            type: content.type || "artikel",
+            title: content.nama || content.title || "Konten",
+            description: content.keterangan || content.description || "",
+            status: content.status || "pending",
+            feedback: content.feedback || "",
+            createdAt: content.created_at || content.createdAt || new Date().toISOString(),
+            updatedAt: content.updated_at || content.updatedAt || new Date().toISOString(),
+          })),
+          createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+          updatedAt: item.updated_at || item.updatedAt || new Date().toISOString(),
         }))
-        setData([...transformedData, ...mockRiwayatData])
+        
+        setData(transformedData)
+        
+        // Update cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem("riwayat_cache", JSON.stringify(transformedData))
+        }
+        
+        setError(null)
+      } else {
+        throw new Error(response.message || "Failed to refresh from server")
       }
-
-      setError(null)
     } catch (err) {
-      setError("Gagal memuat ulang data")
+      console.error("❌ Failed to refresh from server:", err)
+      setError("Gagal memuat ulang data dari server")
+      
+      // Try to use cache
+      try {
+        const cachedData = localStorage.getItem("riwayat_cache")
+        if (cachedData) {
+          setData(JSON.parse(cachedData))
+        }
+      } catch (cacheErr) {
+        console.error("❌ Failed to load from cache:", cacheErr)
+      }
     } finally {
       setLoading(false)
     }
@@ -278,17 +397,32 @@ export function useRiwayatData() {
 
   const deleteItem = async (id: string) => {
     try {
-      setData((prev) => prev.filter((item) => item.id !== id))
-
-      // Update localStorage
-      const storedData = localStorage.getItem("form_submissions")
-      if (storedData) {
-        const parsedData = JSON.parse(storedData)
-        const updatedData = parsedData.filter((item: any) => item.id !== id)
-        localStorage.setItem("form_submissions", JSON.stringify(updatedData))
+      console.log(`🔄 Deleting item ${id} from server...`)
+      
+      // Delete from server first
+      const response = await apiClient.deleteSubmission(id)
+      
+      if (response.success) {
+        console.log(`✅ Item ${id} deleted from server`)
+        
+        // Update local state
+        setData((prev) => prev.filter((item) => item.id !== id))
+        
+        // Update cache
+        const updatedData = data.filter((item) => item.id !== id)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("riwayat_cache", JSON.stringify(updatedData))
+        }
+        
+      } else {
+        throw new Error(response.message || "Failed to delete from server")
       }
     } catch (err) {
-      setError("Gagal menghapus item")
+      console.error(`❌ Failed to delete item ${id}:`, err)
+      setError("Gagal menghapus item dari server")
+      
+      // Don't update local state if server delete failed
+      // This ensures data consistency
     }
   }
 

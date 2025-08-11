@@ -539,46 +539,83 @@ export default function ReviewPage() {
   }
 
   // Called by ContentReviewDialog when the review is finished
-  const handleUpdate = (updatedSubmissions: Submission[]) => {
-    // Update workflow stages and add review timestamp for all submissions
-    const submissionsWithStages = updatedSubmissions.map((sub) => {
-      const workflowStage = getWorkflowStage(sub)
-      // Add review timestamp if all content items have been reviewed
-      const contentItems = sub.contentItems || []
-      const allReviewed = contentItems.every(
-        (item: ContentItem) => item.status === "approved" || item.status === "rejected",
-      )
-      const updatedSub: Submission = {
-        ...sub,
-        workflowStage: workflowStage as "submitted" | "review" | "validation" | "completed",
-        // Add review timestamp if this submission was just fully reviewed
-        tanggalReview: allReviewed && !sub.tanggalReview ? new Date().toISOString() : sub.tanggalReview,
+  const handleUpdate = async (updatedSubmissions: Submission[]) => {
+    try {
+      // Update workflow stages and add review timestamp for all submissions
+      const submissionsWithStages = updatedSubmissions.map((sub) => {
+        const workflowStage = getWorkflowStage(sub)
+        // Add review timestamp if all content items have been reviewed
+        const contentItems = sub.contentItems || []
+        const allReviewed = contentItems.every(
+          (item: ContentItem) => item.status === "approved" || item.status === "rejected",
+        )
+        const updatedSub: Submission = {
+          ...sub,
+          workflowStage: workflowStage as "submitted" | "review" | "validation" | "completed",
+          // Add review timestamp if this submission was just fully reviewed
+          tanggalReview: allReviewed && !sub.tanggalReview ? new Date().toISOString() : sub.tanggalReview,
+        }
+        return updatedSub
+      })
+
+      // Save each updated submission to server
+      for (const submission of submissionsWithStages) {
+        try {
+          console.log(`🔄 Saving review for submission ${submission.id}...`)
+          
+          // Use the review API endpoint
+          await fetch(`/api/reviews/${submission.id}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              status: submission.workflowStage === 'validation' ? 'approved' : 'pending',
+              notes: `Review completed at ${new Date().toISOString()}`,
+              reviewerId: 'current-user-id', // TODO: Get from auth context
+              contentItems: submission.contentItems
+            })
+          })
+          
+          console.log(`✅ Review saved for submission ${submission.id}`)
+        } catch (error) {
+          console.error(`❌ Failed to save review for submission ${submission.id}:`, error)
+        }
       }
-      return updatedSub
-    })
 
-    // Persist to localStorage
-    localStorage.setItem("submissions", JSON.stringify(submissionsWithStages))
+      // Update localStorage cache
+      if (typeof window !== "undefined") {
+        localStorage.setItem("submissions", JSON.stringify(submissionsWithStages))
+      }
 
-    // Filter only submissions that still need review
-    const reviewSubmissions = submissionsWithStages.filter((sub: Submission) => {
-      if (!sub.isConfirmed) return false
-      if (sub.workflowStage && sub.workflowStage !== "review") return false
-      const contentItems = sub.contentItems || []
-      if (contentItems.length === 0) return true
-      // Check if any content items are still pending review
-      // const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
-      // return hasPendingItems
-    })
+      // Filter only submissions that still need review
+      const reviewSubmissions = submissionsWithStages.filter((sub: Submission) => {
+        if (!sub.isConfirmed) return false
+        if (sub.workflowStage && sub.workflowStage !== "review") return false
+        const contentItems = sub.contentItems || []
+        if (contentItems.length === 0) return true
+        // Check if any content items are still pending review
+        // const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
+        // return hasPendingItems
+      })
 
-    setSubmissions(reviewSubmissions)
+      setSubmissions(reviewSubmissions)
 
-    // Show success message
-    toast({
-      title: "Review berhasil disimpan",
-      description: "Dokumen yang sudah direview akan pindah ke tahap validasi",
-      variant: "default",
-    })
+      // Show success message
+      toast({
+        title: "Review berhasil disimpan",
+        description: "Dokumen yang sudah direview akan pindah ke tahap validasi",
+        variant: "default",
+      })
+      
+    } catch (error) {
+      console.error("❌ Failed to save reviews:", error)
+      toast({
+        title: "Gagal menyimpan review",
+        description: "Terjadi kesalahan saat menyimpan review ke server",
+        variant: "destructive",
+      })
+    }
   }
 
   // Keep dialog & selection in-sync

@@ -158,41 +158,93 @@ export default function ValidasiOutputPage() {
     })
   }
 
-  // Load submissions from localStorage
+  // Load submissions from server first, fallback to localStorage
   useEffect(() => {
-    const loadSubmissions = () => {
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("submissions")
-        let submissionsData: Submission[] = []
+    const loadSubmissions = async () => {
+      try {
+        setIsLoading(true)
+        console.log("🔄 Loading validations from server...")
         
-        if (stored) {
-          const parsedSubmissions = JSON.parse(stored).map((sub: any) => ({
-            ...sub,
-            tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : undefined,
-          }))
-
-          // Filter only submissions that need validation
-          submissionsData = parsedSubmissions.filter((sub: Submission) => {
-            if (sub.workflowStage !== "validation") return false
-            if (sub.isOutputValidated) return false
-            const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
-            return hasApprovedItems
-          })
+        // Try to load from server first
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/validations`)
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log("✅ Validations loaded from server")
+          
+          if (data.success && data.data) {
+            // Transform server data
+            const transformedData = data.data.map((sub: any) => ({
+              ...sub,
+              tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : undefined,
+              id: sub.id?.toString() || sub.id,
+            }))
+            
+            // Filter only submissions that need validation
+            const validationSubmissions = transformedData.filter((sub: Submission) => {
+              if (sub.workflowStage !== "validation") return false
+              if (sub.isOutputValidated) return false
+              const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+              return hasApprovedItems
+            })
+            
+            setSubmissions(validationSubmissions)
+            
+            // Update cache
+            if (typeof window !== "undefined") {
+              localStorage.setItem("validations_cache", JSON.stringify(validationSubmissions))
+            }
+            
+            return
+          }
         }
         
-        // If no validation data exists, use dummy data
-        if (submissionsData.length === 0) {
-          submissionsData = generateDummyValidationData()
-          console.log("Using dummy validation data - no existing validation items found")
-        }
+        throw new Error("Server not available")
+        
+      } catch (error) {
+        console.error("❌ Failed to load from server, using cache:", error)
+        
+        // Fallback to localStorage cache
+        if (typeof window !== "undefined") {
+          // Try new cache format first
+          let stored = localStorage.getItem("validations_cache")
+          if (!stored) {
+            // Fallback to old format
+            stored = localStorage.getItem("submissions")
+          }
+          
+          let submissionsData: Submission[] = []
+          
+          if (stored) {
+            const parsedSubmissions = JSON.parse(stored).map((sub: any) => ({
+              ...sub,
+              tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : undefined,
+            }))
 
-        setSubmissions(submissionsData)
-        setFilteredSubmissions(submissionsData)
+            // Filter only submissions that need validation
+            submissionsData = parsedSubmissions.filter((sub: Submission) => {
+              if (sub.workflowStage !== "validation") return false
+              if (sub.isOutputValidated) return false
+              const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+              return hasApprovedItems
+            })
+            
+            setSubmissions(submissionsData)
+            setFilteredSubmissions(submissionsData)
+          } else {
+            // If no cache data exists, use dummy data
+            const dummyData = generateDummyValidationData()
+            console.log("Using dummy validation data - no cache found")
+            setSubmissions(dummyData)
+            setFilteredSubmissions(dummyData)
+          }
+        }
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
-    setTimeout(() => loadSubmissions(), 500) // Simulate loading
+    loadSubmissions()
   }, [])
 
   // Filter submissions based on search term
@@ -218,53 +270,96 @@ export default function ValidasiOutputPage() {
     })
   }
 
-  const handleValidateSubmission = (submissionId: number) => {
-    const updatedSubmissions = submissions.map((sub) =>
-      sub.id === submissionId
-        ? {
-            ...sub,
-            isOutputValidated: true,
-            tanggalValidasiOutput: new Date().toISOString(),
-            workflowStage: "completed" as const,
-          }
-        : sub,
-    )
-
-    // Remove validated submission from current view
-    const stillNeedValidation = updatedSubmissions.filter((sub) => {
-      if (sub.workflowStage !== "validation") return false
-      if (sub.isOutputValidated) return false
-      const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
-      return hasApprovedItems
-    })
-
-    setSubmissions(stillNeedValidation)
-    setFilteredSubmissions(
-      stillNeedValidation.filter(
-        (sub) =>
-          sub.noComtab.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sub.tema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          sub.judul.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    )
-
-    // Update localStorage with all submissions (if exists)
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("submissions")
-      if (stored) {
-        const allSubmissions = JSON.parse(stored)
-        const updatedAllSubmissions = allSubmissions.map((sub: Submission) =>
+  const handleValidateSubmission = async (submissionId: number) => {
+    try {
+      console.log(`🔄 Validating submission ${submissionId}...`)
+      
+      // Submit validation to server
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/validations/${submissionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'validated',
+          notes: `Validated at ${new Date().toISOString()}`,
+          validatorId: 'current-user-id', // TODO: Get from auth context
+          publishDate: new Date().toISOString()
+        })
+      })
+      
+      if (response.ok) {
+        console.log(`✅ Submission ${submissionId} validated on server`)
+        
+        // Update local state
+        const updatedSubmissions = submissions.map((sub) =>
           sub.id === submissionId
             ? {
                 ...sub,
                 isOutputValidated: true,
                 tanggalValidasiOutput: new Date().toISOString(),
-                workflowStage: "completed", // Mark as completed after validation
+                workflowStage: "completed" as const,
               }
             : sub,
         )
-        localStorage.setItem("submissions", JSON.stringify(updatedAllSubmissions))
+
+        // Remove validated submission from current view
+        const stillNeedValidation = updatedSubmissions.filter((sub) => {
+          if (sub.workflowStage !== "validation") return false
+          if (sub.isOutputValidated) return false
+          const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+          return hasApprovedItems
+        })
+
+        setSubmissions(stillNeedValidation)
+        setFilteredSubmissions(
+          stillNeedValidation.filter(
+            (sub) =>
+              sub.noComtab.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              sub.tema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              sub.judul.toLowerCase().includes(searchTerm.toLowerCase()),
+          ),
+        )
+
+        // Update cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem("validations_cache", JSON.stringify(stillNeedValidation))
+          
+          // Also update main submissions cache if exists
+          const stored = localStorage.getItem("submissions")
+          if (stored) {
+            const allSubmissions = JSON.parse(stored)
+            const updatedAllSubmissions = allSubmissions.map((sub: Submission) =>
+              sub.id === submissionId
+                ? {
+                    ...sub,
+                    isOutputValidated: true,
+                    tanggalValidasiOutput: new Date().toISOString(),
+                    workflowStage: "completed",
+                  }
+                : sub,
+            )
+            localStorage.setItem("submissions", JSON.stringify(updatedAllSubmissions))
+          }
+        }
+        
+        toast({
+          title: "Validasi Berhasil",
+          description: "Submission telah divalidasi dan disimpan ke server",
+          variant: "default",
+        })
+        
+      } else {
+        throw new Error(`Server error: ${response.status}`)
       }
+      
+    } catch (error) {
+      console.error(`❌ Failed to validate submission ${submissionId}:`, error)
+      toast({
+        title: "Gagal Validasi",
+        description: "Terjadi kesalahan saat menyimpan validasi ke server",
+        variant: "destructive",
+      })
     }
   }
 

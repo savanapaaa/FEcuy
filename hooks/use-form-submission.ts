@@ -118,7 +118,7 @@ export function useFormSubmission() {
 
         const response = await updateSubmission(editingSubmissionId.toString(), updateData)
         
-        if (response.success) {
+        if (response.success && response.data) {
           console.log("✅ Submission updated successfully on server")
           
           // Show success alert
@@ -153,7 +153,7 @@ export function useFormSubmission() {
             comtabNumber: response.data?.id || editingSubmissionId.toString(),
           }
         } else {
-          throw new Error(response.message || "Failed to update submission")
+          throw new Error(response.message || response.error || "Failed to update submission")
         }
       } else {
         // **CREATE NEW SUBMISSION ON SERVER**
@@ -174,7 +174,7 @@ export function useFormSubmission() {
 
         const response = await createSubmission(submissionData)
         
-        if (response.success) {
+        if (response.success && response.data) {
           console.log("✅ Submission created successfully on server:", response.data)
           
           const pinNumber = generatePIN()
@@ -224,7 +224,7 @@ export function useFormSubmission() {
             comtabNumber: response.data.id,
           }
         } else {
-          throw new Error(response.message || "Failed to create submission")
+          throw new Error(response.message || response.error || "Failed to create submission")
         }
       }
     } catch (error) {
