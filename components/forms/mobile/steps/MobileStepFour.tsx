@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import type { FormData } from "@/app/form-types"
 import { useFormSubmission } from "@/hooks/use-form-submission"
 import { EnhancedFileOrLinkInput } from "@/components/form/enhanced-file-or-link-input"
-import { FileText, Upload, Hash, Key, RefreshCw, CheckCircle, AlertCircle, Sparkles } from "lucide-react"
+import { FileText, Upload, Hash, Key, RefreshCw, CheckCircle, AlertCircle, Sparkles, AlertTriangle } from "lucide-react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +19,8 @@ interface MobileStepFourProps {
   updateFormData: (updates: Partial<FormData>) => void
   generateCredentials: () => { noComtab: string; pinSandi: string }
   isEditMode: boolean
+  isNoComtabExists?: (noComtab: string) => boolean
+  generateUniqueNoComtab?: () => string
 }
 
 export default function MobileStepFour({
@@ -26,18 +28,53 @@ export default function MobileStepFour({
   updateFormData,
   generateCredentials,
   isEditMode,
+  isNoComtabExists,
+  generateUniqueNoComtab,
 }: MobileStepFourProps) {
   const { submitForm, isSubmitting } = useFormSubmission()
   const [isGenerating, setIsGenerating] = useState(false)
+  const [noComtabError, setNoComtabError] = useState("")
+
+  // Check for duplicate no comtab when field changes
+  useEffect(() => {
+    if (!isEditMode && formData.noComtab && isNoComtabExists) {
+      const isDuplicate = isNoComtabExists(formData.noComtab)
+      if (isDuplicate) {
+        setNoComtabError("No. Comtab sudah digunakan. Silakan generate ulang.")
+      } else {
+        setNoComtabError("")
+      }
+    } else {
+      setNoComtabError("")
+    }
+  }, [formData.noComtab, isEditMode, isNoComtabExists])
 
   // Generate credentials with proper format
   const handleGenerateCredentials = async () => {
     setIsGenerating(true)
+    setNoComtabError("")
 
     // Simulate generation delay
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    const credentials = generateCredentials()
+    try {
+      if (generateUniqueNoComtab) {
+        // Use the unique generator from hook
+        const noComtab = generateUniqueNoComtab()
+        const pinSandi = Math.random().toString(36).substring(2, 8).toUpperCase()
+        
+        updateFormData({
+          noComtab,
+          pinSandi,
+        })
+      } else {
+        // Fallback to original method
+        const credentials = generateCredentials()
+      }
+    } catch (error) {
+      console.error("Error generating credentials:", error)
+      setNoComtabError("Gagal generate No. Comtab. Silakan coba lagi.")
+    }
 
     setIsGenerating(false)
   }
@@ -48,7 +85,8 @@ export default function MobileStepFour({
     formData.noComtab &&
     formData.noComtab.trim() !== "" &&
     formData.pinSandi &&
-    formData.pinSandi.trim() !== ""
+    formData.pinSandi.trim() !== "" &&
+    !noComtabError
   )
 
   const getMissingFields = () => {
@@ -56,6 +94,7 @@ export default function MobileStepFour({
     if (!formData.buktiMengetahui) missing.push("Bukti Persetujuan")
     if (!formData.noComtab || formData.noComtab.trim() === "") missing.push("No. Comtab")
     if (!formData.pinSandi || formData.pinSandi.trim() === "") missing.push("Pin Dokumen")
+    if (noComtabError) missing.push("No. Comtab Valid")
     return missing
   }
 
@@ -168,9 +207,10 @@ export default function MobileStepFour({
                 <span className="text-red-500">*</span>
               </Label>
               <EnhancedFileOrLinkInput
+                id="buktiMengetahui"
+                label="Upload Bukti Mengetahui"
                 value={formData.buktiMengetahui || ""}
                 onChange={(value) => updateFormData({ buktiMengetahui: value })}
-                placeholder="Upload dokumen bukti persetujuan"
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                 className={cn(
                   "text-sm",
@@ -246,17 +286,29 @@ export default function MobileStepFour({
                 id="noComtab"
                 type="text"
                 value={formData.noComtab || ""}
-                onChange={(e) => updateFormData({ noComtab: e.target.value })}
+                onChange={(e) => {
+                  updateFormData({ noComtab: e.target.value })
+                  // Clear error when user types
+                  if (noComtabError) setNoComtabError("")
+                }}
                 placeholder="0000/IKP/MM/YYYY"
                 disabled={isEditMode}
                 className={cn(
                   "text-sm",
                   isEditMode && "bg-gray-50 cursor-not-allowed",
-                  formData.noComtab
+                  noComtabError
+                    ? "border-red-200 focus:border-red-500 focus:ring-red-500"
+                    : formData.noComtab
                     ? "border-green-200 focus:border-green-500 focus:ring-green-500"
                     : "border-red-200 focus:border-red-500 focus:ring-red-500",
                 )}
               />
+              {noComtabError && (
+                <div className="flex items-center space-x-1 text-red-600 text-xs">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>{noComtabError}</span>
+                </div>
+              )}
               <p className="text-xs text-gray-500">Format: nomor/IKP/bulan/tahun</p>
               {formData.noComtab && (
                 <div className="flex items-center space-x-2 text-xs text-green-600">

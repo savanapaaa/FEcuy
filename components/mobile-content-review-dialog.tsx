@@ -1,14 +1,14 @@
-"use client"
+﻿"use client"
 import { useState, useEffect } from "react"
 import Swal from 'sweetalert2'
-import { showMobileReviewSuccessAlert, showErrorAlert } from '@/lib/sweetalert-utils'
+import { MobileConfirmationDialog } from "./mobile-confirmation-dialog"
+import { showMobileReviewSuccessAlert, showDocumentReviewedSuccessAlert, showSimpleDocumentReviewedAlert, showAllRejectedAlert, showSaveReviewConfirmation, showErrorAlert, showConfirmationAlert } from '@/lib/sweetalert-utils'
 
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   CheckCircle,
@@ -43,6 +43,39 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import PreviewModal from "./preview-modal"
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage } from "@/lib/utils"
+
+// Custom CSS for mobile scroll fix
+const scrollCSS = `
+  .mobile-dialog-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+  }
+  .mobile-dialog-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .mobile-dialog-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .mobile-dialog-scroll::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.5);
+    border-radius: 2px;
+  }
+  .mobile-dialog-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.8);
+  }
+`
+
+// Inject CSS
+if (typeof document !== 'undefined') {
+  const styleElement = document.getElementById('mobile-dialog-scroll-style')
+  if (!styleElement) {
+    const style = document.createElement('style')
+    style.id = 'mobile-dialog-scroll-style'
+    style.textContent = scrollCSS
+    document.head.appendChild(style)
+  }
+}
 
 // Helper function to determine workflow stage
 const getWorkflowStage = (submission: any) => {
@@ -320,6 +353,7 @@ export function MobileContentReviewDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showReviewSummary, setShowReviewSummary] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
     files: false,
@@ -344,8 +378,46 @@ export function MobileContentReviewDialog({
       setRejectionReasons({})
       setShowReviewSummary(false)
       setShowConfirmation(false)
+      setShowConfirmDialog(false)
       setExpandedSections({ basic: true, files: false, review: true })
       setPreviewModal({ isOpen: false, file: null, url: "", type: "", fileName: "", title: "" })
+      
+      // Listen for SweetAlert events to prevent z-index conflicts
+      const handleSwalOpen = () => {
+        const dialogElements = document.querySelectorAll('[data-radix-portal]')
+        dialogElements.forEach(el => {
+          (el as HTMLElement).style.pointerEvents = 'none'
+        })
+      }
+      
+      const handleSwalClose = () => {
+        const dialogElements = document.querySelectorAll('[data-radix-portal]')
+        dialogElements.forEach(el => {
+          (el as HTMLElement).style.pointerEvents = 'auto'
+        })
+      }
+      
+      // Check if SweetAlert is currently open and monitor changes
+      const observer = new MutationObserver(() => {
+        const swalContainer = document.querySelector('.swal2-container')
+        if (swalContainer) {
+          handleSwalOpen()
+        } else {
+          handleSwalClose()
+        }
+      })
+      
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class']
+      })
+      
+      return () => {
+        observer.disconnect()
+        handleSwalClose()
+      }
     }
   }, [isOpen])
 
@@ -357,7 +429,7 @@ export function MobileContentReviewDialog({
   if (!currentItem && contentItems.length === 0) {
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm mx-4">
+        <DialogContent className="max-w-sm w-[95vw] fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -481,15 +553,93 @@ export function MobileContentReviewDialog({
   // Handle review submission
   const handleReviewSubmit = async () => {
     if (!canSubmit) {
-      onToast("Harap review semua konten dan berikan alasan untuk konten yang ditolak", "error")
+      await Swal.fire({
+        title: "Review Belum Lengkap",
+        text: "Harap review semua konten dan berikan alasan untuk konten yang ditolak",
+        icon: "warning",
+        confirmButtonText: "OK",
+        customClass: {
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-yellow-500 to-amber-600",
+        },
+      })
       return
     }
 
+    // Calculate review statistics for confirmation
+    const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
+    const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+    const totalItems = contentItems.length
+
+    // Show confirmation dialog with review summary
+    const result = await Swal.fire({
+      title: "Konfirmasi Review",
+      html: `
+        <div class="text-left space-y-3">
+          <p class="text-gray-700 mb-4">Apakah Anda yakin ingin menyimpan hasil review ini?</p>
+          <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-3 rounded-lg border border-green-200">
+            <div class="flex items-center space-x-2 text-green-700">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">${approvedCount} Konten Disetujui</span>
+            </div>
+          </div>
+          <div class="bg-gradient-to-r from-red-50 to-rose-50 p-3 rounded-lg border border-red-200">
+            <div class="flex items-center space-x-2 text-red-700">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+              </svg>
+              <span class="font-medium">${rejectedCount} Konten Ditolak</span>
+            </div>
+          </div>
+          <div class="text-sm text-gray-600 mt-3">
+            Total ${totalItems} konten telah direview
+          </div>
+        </div>
+      `,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Ya, Simpan Review",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rounded-2xl",
+        confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600",
+        cancelButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-gray-400 to-gray-500",
+        htmlContainer: "text-sm",
+      },
+      buttonsStyling: false,
+    })
+    
+    if (result.isConfirmed) {
+      // Proceed with review submission
+      setShowReviewSummary(true)
+    }
+  }
+
+  // Handle confirmation from custom dialog
+  const handleConfirmReview = async () => {
     setShowReviewSummary(true)
   }
 
   // Handle confirmed review submission
   const handleConfirmedReviewSubmit = async () => {
+    // Show loading
+    Swal.fire({
+      title: "Memproses Review",
+      text: "Mohon tunggu sebentar...",
+      icon: "info",
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false,
+      customClass: {
+        popup: "rounded-2xl",
+      },
+      didOpen: () => {
+        Swal.showLoading()
+      },
+    })
+
     setIsSubmitting(true)
 
     try {
@@ -530,61 +680,73 @@ export function MobileContentReviewDialog({
 
       const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
       const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
+      const totalItems = contentItems.length
 
-      // Show success SweetAlert for mobile
+      // Show success message with consistent styling
       await Swal.fire({
-        title: 'Review Berhasil!',
+        title: "Review Berhasil!",
         html: `
-          <div class="text-center">
-            <div class="mb-4">
-              <div class="text-base font-semibold text-gray-800 mb-3">Hasil Review:</div>
-              <div class="flex justify-center space-x-4">
-                <div class="text-center p-3 bg-green-50 rounded-lg">
-                  <div class="text-xl font-bold text-green-600">${approvedCount}</div>
-                  <div class="text-xs text-gray-600">Disetujui</div>
+          <div class="text-center space-y-4">
+            <div class="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            </div>
+            <p class="text-gray-700 text-base">Review konten telah diselesaikan dengan hasil:</p>
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+              <div class="flex justify-between items-center text-sm">
+                <div class="flex items-center space-x-2 text-green-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span class="font-medium">${approvedCount} Konten Disetujui</span>
                 </div>
-                <div class="text-center p-3 bg-red-50 rounded-lg">
-                  <div class="text-xl font-bold text-red-600">${rejectedCount}</div>
-                  <div class="text-xs text-gray-600">Ditolak</div>
+                <div class="flex items-center space-x-2 text-red-600">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span class="font-medium">${rejectedCount} Konten Ditolak</span>
                 </div>
               </div>
             </div>
+            ${approvedCount > 0 ? 
+              '<div class="bg-gradient-to-r from-yellow-50 to-amber-50 p-3 rounded-lg border border-yellow-200 mt-3"><p class="text-yellow-700 text-sm font-medium">Konten yang disetujui akan dilanjutkan ke tahap validasi</p></div>' : 
+              '<div class="bg-gradient-to-r from-gray-50 to-slate-50 p-3 rounded-lg border border-gray-200 mt-3"><p class="text-gray-700 text-sm font-medium">Semua konten ditolak, proses review selesai</p></div>'
+            }
           </div>
         `,
-        icon: 'success',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#2563eb',
+        icon: "success",
+        confirmButtonText: approvedCount > 0 ? "Lanjut ke Validasi" : "Tutup",
+        timer: 5000,
+        timerProgressBar: true,
         customClass: {
-          popup: 'rounded-lg text-sm',
-          title: 'text-lg font-bold text-gray-800',
-          confirmButton: 'px-4 py-2 rounded-md font-medium text-sm'
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600",
+          htmlContainer: "text-sm",
         },
-        width: 320 // Smaller width for mobile
       })
 
-      onToast(`Review selesai! ${approvedCount} konten disetujui, ${rejectedCount} konten ditolak`, "success")
       setIsSubmitting(false)
       setShowReviewSummary(false)
 
       if (approvedCount > 0) {
         setShowConfirmation(true)
       } else {
+        // Close dialog and go back to review list
         onOpenChange(false)
       }
     } catch (error) {
       console.error('Error submitting review:', error)
       
-      // Show error SweetAlert for mobile
       await Swal.fire({
-        title: 'Gagal Menyimpan Review',
-        text: 'Terjadi kesalahan saat menyimpan review. Silakan coba lagi.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#dc2626',
+        title: "Terjadi Kesalahan",
+        text: "Gagal menyimpan review. Silakan coba lagi.",
+        icon: "error",
+        confirmButtonText: "OK",
         customClass: {
-          popup: 'rounded-lg text-sm'
+          popup: "rounded-2xl",
+          confirmButton: "rounded-xl px-6 py-2 bg-gradient-to-r from-red-500 to-rose-600",
         },
-        width: 320
       })
       
       setIsSubmitting(false)
@@ -632,8 +794,8 @@ export function MobileContentReviewDialog({
 
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm mx-4">
-          <ScrollArea className="max-h-[80vh]">
+        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] overflow-hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="max-h-[80vh] overflow-y-auto mobile-dialog-scroll">
             <div className="p-2 space-y-4">
               {/* Header */}
               <div className="text-center">
@@ -670,7 +832,7 @@ export function MobileContentReviewDialog({
                   Detail Review ({contentItems.length} konten)
                 </h4>
 
-                <ScrollArea className="max-h-24">
+                <div className="max-h-24 overflow-y-auto">
                   <div className="space-y-2">
                     {contentItems.map((item) => {
                       const decision = reviewDecisions[item.id]
@@ -697,41 +859,30 @@ export function MobileContentReviewDialog({
                       )
                     })}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-center space-x-3 pt-2">
+              {/* Simple Action Buttons */}
+              <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"
                   onClick={() => setShowReviewSummary(false)}
                   disabled={isSubmitting}
-                  className="px-4 py-2"
+                  className="flex-1"
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
                   Kembali
                 </Button>
 
                 <Button
                   onClick={handleConfirmedReviewSubmit}
                   disabled={isSubmitting}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      Konfirmasi
-                    </>
-                  )}
+                  {isSubmitting ? "Menyimpan..." : "Simpan"}
                 </Button>
               </div>
             </div>
-          </ScrollArea>
+          </div>
         </DialogContent>
       </Dialog>
     )
@@ -744,8 +895,8 @@ export function MobileContentReviewDialog({
 
     return (
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm mx-4">
-          <div className="p-4 space-y-4 text-center">
+        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] overflow-hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="p-4 space-y-4 text-center max-h-[80vh] overflow-y-auto mobile-dialog-scroll">
             <div className="mx-auto mb-3 p-3 bg-blue-500 rounded-full w-16 h-16 flex items-center justify-center">
               <Target className="h-8 w-8 text-white" />
             </div>
@@ -771,24 +922,22 @@ export function MobileContentReviewDialog({
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-center gap-3 pt-2">
+            {/* Simple Actions */}
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
                 onClick={() => setShowConfirmation(false)}
                 disabled={isSubmitting}
-                className="px-4 py-2"
+                className="flex-1"
               >
-                <ChevronLeft className="h-4 w-4 mr-1" />
                 Kembali
               </Button>
 
               <Button
                 onClick={handleConfirmDocument}
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700"
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
-                <Rocket className="h-4 w-4 mr-1" />
                 Lanjutkan
               </Button>
             </div>
@@ -801,12 +950,12 @@ export function MobileContentReviewDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm h-[95vh] overflow-hidden mx-4">
+        <DialogContent className="max-w-sm w-[95vw] max-h-[90vh] overflow-hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="h-full flex flex-col"
+            className="h-full flex flex-col max-h-[85vh]"
           >
             {/* Header */}
             <DialogHeader className="border-b pb-4 flex-shrink-0">
@@ -850,8 +999,8 @@ export function MobileContentReviewDialog({
 
             {/* Content */}
             <div className="flex-1 overflow-hidden min-h-0">
-              <ScrollArea className="h-full">
-                <div className="p-4 space-y-4">
+              <div className="h-full overflow-y-auto mobile-dialog-scroll">
+                <div className="p-4 space-y-4 pb-6">
                   {/* Current Content Item Header */}
                   <Card className="bg-blue-50 border-blue-200">
                     <CardHeader className="pb-3">
@@ -1102,182 +1251,145 @@ export function MobileContentReviewDialog({
                   </Card>
 
                   {/* Review Decision Section */}
-                  <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-sm flex items-center">
-                        <Shield className="h-4 w-4 mr-2 text-blue-600" />
-                        Keputusan Review
-                      </CardTitle>
+                  <Card className="border-gray-200">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-gray-900">Keputusan</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      {/* Decision Buttons */}
-                      <div className="grid grid-cols-2 gap-3">
+                    <CardContent className="space-y-3">
+                      {/* Simple Decision Buttons */}
+                      <div className="grid grid-cols-2 gap-2">
                         <Button
                           onClick={() => handleReviewDecisionChange("approved")}
+                          variant={currentDecision === "approved" ? "default" : "outline"}
                           className={cn(
-                            "h-12 text-xs transition-all duration-300",
-                            currentDecision === "approved"
-                              ? "bg-green-500 text-white shadow-lg"
-                              : "bg-white text-green-700 border-2 border-green-300 hover:bg-green-50",
+                            "h-10 text-sm",
+                            currentDecision === "approved" 
+                              ? "bg-green-600 hover:bg-green-700 text-white" 
+                              : "border-green-300 text-green-700 hover:bg-green-50"
                           )}
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Setujui
+                          ✓ Setujui
                         </Button>
 
                         <Button
                           onClick={() => handleReviewDecisionChange("rejected")}
+                          variant={currentDecision === "rejected" ? "default" : "outline"}
                           className={cn(
-                            "h-12 text-xs transition-all duration-300",
-                            currentDecision === "rejected"
-                              ? "bg-red-500 text-white shadow-lg"
-                              : "bg-white text-red-700 border-2 border-red-300 hover:bg-red-50",
+                            "h-10 text-sm",
+                            currentDecision === "rejected" 
+                              ? "bg-red-600 hover:bg-red-700 text-white" 
+                              : "border-red-300 text-red-700 hover:bg-red-50"
                           )}
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Tolak
+                          ✗ Tolak
                         </Button>
                       </div>
 
-                      {/* Rejection Reason */}
-                      <AnimatePresence>
-                        {currentDecision === "rejected" && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.3 }}
-                            className="space-y-2"
-                          >
-                            <Label className="text-xs font-semibold text-red-700">
-                              Alasan Penolakan <span className="text-red-500">*</span>
-                            </Label>
-                            <Textarea
-                              value={currentRejectionReason}
-                              onChange={(e) => handleRejectionReasonChange(e.target.value)}
-                              placeholder="Jelaskan alasan mengapa konten ini ditolak..."
-                              className="min-h-[80px] text-xs border-red-200 focus:border-red-400 focus:ring-red-200"
-                            />
-                            {currentDecision === "rejected" && !currentRejectionReason.trim() && (
-                              <p className="text-xs text-red-600 flex items-center">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                Alasan penolakan wajib diisi
-                              </p>
-                            )}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {/* Simple Rejection Reason */}
+                      {currentDecision === "rejected" && (
+                        <div className="space-y-2">
+                          <Label className="text-sm text-red-700">Alasan penolakan</Label>
+                          <Textarea
+                            value={currentRejectionReason}
+                            onChange={(e) => handleRejectionReasonChange(e.target.value)}
+                            placeholder="Tulis alasan penolakan..."
+                            className="min-h-[60px] text-sm"
+                          />
+                          {!currentRejectionReason.trim() && (
+                            <p className="text-xs text-red-600">Alasan wajib diisi</p>
+                          )}
+                        </div>
+                      )}
 
-                      {/* Decision Status */}
-                      <AnimatePresence>
-                        {currentDecision && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.9 }}
-                            transition={{ duration: 0.3 }}
-                            className={cn(
-                              "p-3 rounded-lg border-2 flex items-center space-x-2",
-                              currentDecision === "approved"
-                                ? "bg-green-50 border-green-200"
-                                : "bg-red-50 border-red-200",
-                            )}
-                          >
-                            {currentDecision === "approved" ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-600" />
-                            )}
-                            <div>
-                              <p
-                                className={cn(
-                                  "font-semibold text-xs",
-                                  currentDecision === "approved" ? "text-green-800" : "text-red-800",
-                                )}
-                              >
-                                {currentDecision === "approved" ? "Konten Disetujui" : "Konten Ditolak"}
-                              </p>
-                              <p
-                                className={cn(
-                                  "text-xs",
-                                  currentDecision === "approved" ? "text-green-700" : "text-red-700",
-                                )}
-                              >
-                                {currentDecision === "approved"
-                                  ? "Akan dilanjutkan ke validasi"
-                                  : "Akan dikembalikan untuk perbaikan"}
-                              </p>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      {/* Simple Status */}
+                      {currentDecision && (
+                        <div className={cn(
+                          "p-2 rounded text-center text-sm",
+                          currentDecision === "approved" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                        )}>
+                          {currentDecision === "approved" ? "✓ Disetujui" : "✗ Ditolak"}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             {/* Bottom Navigation */}
-            <div className="border-t p-4 bg-gray-50 flex-shrink-0">
+            <div className="border-t p-3 bg-white flex-shrink-0">
+              {/* Simple Navigation */}
               <div className="flex items-center justify-between mb-3">
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={goToPreviousItem}
                   disabled={!canGoPrevious()}
-                  className="px-3 py-2 text-xs bg-transparent"
+                  className="h-8 px-3 text-sm"
                 >
-                  <ChevronLeft className="h-3 w-3 mr-1" />
-                  Sebelumnya
+                  ← Prev
                 </Button>
 
-                <div className="text-xs text-gray-600 text-center">
-                  <span className="font-medium">
-                    {currentStep + 1} dari {contentItems.length}
-                  </span>
-                  {isCurrentItemValid() && <span className="ml-2 text-green-600 font-medium">✓ Selesai</span>}
-                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {currentStep + 1}/{contentItems.length}
+                </span>
 
                 <Button
+                  variant="ghost"
                   onClick={goToNextItem}
                   disabled={!canGoNext()}
-                  className="px-3 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                  className="h-8 px-3 text-sm"
                 >
-                  Selanjutnya
-                  <ChevronRight className="h-3 w-3 ml-1" />
+                  Next →
                 </Button>
               </div>
 
-              {/* Submit Button */}
-              <AnimatePresence>
-                {canSubmit && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Button
-                      onClick={handleReviewSubmit}
-                      disabled={isSubmitting}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-                    >
-                      <FileCheck className="h-4 w-4 mr-2" />
-                      Konfirmasi Review ({getReviewedCount()}/{contentItems.length})
-                    </Button>
-                  </motion.div>
+              {/* Submit Button - Always visible but disabled based on conditions */}
+              <Button
+                onClick={handleReviewSubmit}
+                disabled={!canSubmit || isSubmitting}
+                className={cn(
+                  "w-full h-10 text-white font-medium",
+                  canSubmit 
+                    ? "bg-blue-600 hover:bg-blue-700" 
+                    : "bg-gray-400 cursor-not-allowed"
                 )}
-              </AnimatePresence>
+              >
+                {isSubmitting ? "Menyimpan..." : "Simpan Review"}
+              </Button>
+
+              {/* Help text for submission requirements */}
+              {!canSubmit && (
+                <div className="text-xs text-orange-600 text-center mt-2 space-y-1">
+                  {!allItemsReviewed && (
+                    <p>• Review semua konten ({getReviewedCount()}/{contentItems.length} selesai)</p>
+                  )}
+                  {allItemsReviewed && !rejectedItemsHaveReasons && (
+                    <p>• Berikan alasan untuk konten yang ditolak</p>
+                  )}
+                </div>
+              )}
 
               {!isCurrentItemValid() && (
-                <p className="text-xs text-orange-600 flex items-center justify-center mt-2">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Harap buat keputusan review
+                <p className="text-xs text-blue-600 text-center mt-2">
+                  Pilih Setujui atau Tolak untuk konten ini
                 </p>
               )}
             </div>
           </motion.div>
         </DialogContent>
       </Dialog>
+
+      {/* Custom Confirmation Dialog */}
+      <MobileConfirmationDialog
+        isOpen={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        title="Konfirmasi Review"
+        description="Apakah Anda yakin ingin menyimpan hasil review ini? Hasil review tidak dapat diubah setelah disimpan."
+        confirmText="Ya, Lanjutkan"
+        cancelText="Batal"
+        onConfirm={handleConfirmReview}
+        variant="default"
+      />
 
       {/* Preview Modal */}
       <PreviewModal

@@ -27,7 +27,6 @@ import {
   Download,
   ExternalLink,
   Ban,
-  Edit,
   Trash2,
   Shield,
   Globe,
@@ -158,7 +157,6 @@ export function MobileRekapDetailDialog({
   const [takedownReason, setTakedownReason] = useState("")
   const [selectedItemId, setSelectedItemId] = useState<string>("")
   const [selectedItemName, setSelectedItemName] = useState<string>("")
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState("overview")
   const [previewModal, setPreviewModal] = useState({
@@ -249,7 +247,7 @@ export function MobileRekapDetailDialog({
 
       if (result.isConfirmed) {
         const submissions = loadSubmissionsFromStorage()
-        const updatedSubmissions = submissions.filter((sub) => sub.id !== submission.id)
+        const updatedSubmissions = submissions.filter((sub: any) => sub.id !== submission.id)
         saveSubmissionsToStorage(updatedSubmissions)
 
         await Swal.fire({
@@ -705,9 +703,9 @@ export function MobileRekapDetailDialog({
     if (!takedownReason.trim()) return
 
     const submissions = loadSubmissionsFromStorage()
-    const updatedSubmissions = submissions.map((sub) => {
+    const updatedSubmissions = submissions.map((sub: any) => {
       if (sub.id === submission.id) {
-        const updatedContentItems = sub.contentItems?.map((item) => {
+        const updatedContentItems = sub.contentItems?.map((item: any) => {
           if (item.id === itemId) {
             return {
               ...item,
@@ -748,12 +746,12 @@ export function MobileRekapDetailDialog({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-full md:max-w-4xl max-h-screen md:max-h-[90vh] h-screen md:h-auto bg-white border-0 md:border shadow-none md:shadow-lg p-0 m-0 rounded-none md:rounded-lg overflow-hidden">
+        <DialogContent className="max-w-full md:max-w-4xl h-screen md:max-h-[90vh] md:h-auto bg-white border-0 md:border shadow-none md:shadow-lg p-0 m-0 rounded-none md:rounded-lg overflow-hidden flex flex-col">
           {/* Mobile Header - Compact */}
           <motion.div
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-2 md:p-4 sticky top-0 z-50 shadow-lg"
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-2 md:p-4 flex-shrink-0 shadow-lg"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-1.5 flex-1 min-w-0">
@@ -761,19 +759,19 @@ export function MobileRekapDetailDialog({
                   variant="ghost"
                   size="sm"
                   onClick={() => onOpenChange(false)}
-                  className="text-white hover:bg-white/20 p-1 rounded-full h-6 w-6"
+                  className="text-white hover:bg-white/20 p-1 rounded-full h-6 w-6 flex-shrink-0"
                 >
                   <ArrowLeft className="h-3 w-3" />
                 </Button>
-                <div className="p-1 bg-white/20 rounded">
+                <div className="p-1 bg-white/20 rounded flex-shrink-0">
                   <FileText className="h-3 w-3 text-white" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 mr-2">
                   <DialogTitle className="text-sm font-bold text-white truncate">{submission.noComtab}</DialogTitle>
                   <DialogDescription className="text-green-100 text-xs truncate">{submission.judul}</DialogDescription>
                 </div>
               </div>
-              <div className="flex items-center space-x-1">
+              <div className="flex items-center space-x-1 flex-shrink-0">
                 {submission.isOutputValidated && (
                   <Badge className="bg-white/20 text-white border-white/30 text-xs px-1 py-0">
                     <Shield className="h-2 w-2 mr-0.5" />
@@ -781,19 +779,14 @@ export function MobileRekapDetailDialog({
                   </Badge>
                 )}
                 {/* Mobile Edit Actions */}
-                <div className="flex items-center space-x-0.5">
-                  <Button variant="outline" size="sm" onClick={() => setIsEditDialogOpen(true)} className="h-8 px-2">
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDelete}
-                    className="text-red-600 hover:bg-red-50 h-8 px-2 bg-transparent"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  className="text-red-300 hover:bg-red-500/20 border-red-300/30 h-6 px-1.5 bg-transparent flex-shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             </div>
 
@@ -848,7 +841,7 @@ export function MobileRekapDetailDialog({
           </motion.div>
 
           {/* Tab Navigation - Compact */}
-          <div className="bg-white border-b border-gray-200 sticky top-[90px] z-40 shadow-sm">
+          <div className="bg-white border-b border-gray-200 flex-shrink-0 shadow-sm">
             <ScrollArea className="w-full">
               <div className="flex space-x-0.5 p-1 min-w-max">
                 {tabs.map((tab, index) => (
@@ -891,17 +884,23 @@ export function MobileRekapDetailDialog({
           </div>
 
           {/* Content - Scrollable area */}
-          <div className="flex-1 overflow-hidden">
-            <ScrollArea className="h-full">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.2 }}
-                  className="p-2 md:p-4 space-y-2 md:space-y-3 pb-16 md:pb-8"
-                >
+          <div 
+            className="flex-1 overflow-y-auto overscroll-contain" 
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              height: '100%',
+              maxHeight: '100%'
+            }}
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="p-2 md:p-4 space-y-2 md:space-y-3 pb-20"
+              >
                   {activeTab === "overview" && (
                     <div className="space-y-2">
                       {/* Document Information */}
@@ -1053,6 +1052,26 @@ export function MobileRekapDetailDialog({
                               )}
                             </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Test Scroll Content - temporary */}
+                      <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-sky-50">
+                        <CardHeader className="pb-1">
+                          <CardTitle className="text-xs md:text-sm flex items-center text-blue-800">
+                            <Info className="h-3 w-3 mr-1 text-blue-600" />
+                            Test Scroll Area
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {[1,2,3,4,5,6,7,8,9,10].map(i => (
+                            <div key={i} className="p-2 bg-white rounded border border-blue-200">
+                              <p className="text-xs text-gray-700">
+                                Test konten {i} - Silakan scroll ke bawah untuk melihat konten lainnya. 
+                                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                              </p>
+                            </div>
+                          ))}
                         </CardContent>
                       </Card>
                     </div>
@@ -2039,29 +2058,28 @@ export function MobileRekapDetailDialog({
                   )}
                 </motion.div>
               </AnimatePresence>
-            </ScrollArea>
           </div>
 
           {/* Mobile Footer - Compact */}
           <motion.div
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-white border-t border-gray-200 p-2 md:p-4 sticky bottom-0 shadow-lg"
+            className="bg-white border-t border-gray-200 p-2 md:p-4 flex-shrink-0 shadow-lg"
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1.5 text-xs md:text-sm text-gray-600">
-                <Activity className="h-2 w-2" />
-                <span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center space-x-1.5 text-xs text-gray-600 flex-1 min-w-0">
+                <Activity className="h-2 w-2 flex-shrink-0" />
+                <span className="truncate">
                   {contentItems.length} konten • {approvedItems.length} setuju • {publishedItems.length} tayang •{" "}
                   {takedownItems.length} takedown
                 </span>
               </div>
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1.5 flex-shrink-0">
                 <Button
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   size="sm"
-                  className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700 text-xs md:text-sm px-2 md:px-4 py-1 md:py-2 h-6 md:h-8"
+                  className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700 text-xs px-3 py-1 h-7 whitespace-nowrap"
                 >
                   Tutup
                 </Button>
@@ -2131,22 +2149,6 @@ export function MobileRekapDetailDialog({
               <Ban className="h-4 w-4 mr-2" />
               Takedown Konten
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog Placeholder */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-[90vw]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Edit className="h-5 w-5 text-blue-600" />
-              <span>Edit Dokumen</span>
-            </DialogTitle>
-            <DialogDescription>Fitur edit akan segera tersedia.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setIsEditDialogOpen(false)}>Tutup</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -257,3 +257,249 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* SweetAlert2 Custom Styles for Mobile */
+.swal2-container {
+  z-index: 999999 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1rem !important;
+}
+
+.swal2-mobile-container {
+  z-index: 999999 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.swal2-popup {
+  z-index: 999999 !important;
+  position: relative !important;
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  margin: 0 !important;
+  transform: none !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.swal2-mobile-popup {
+  width: 90vw !important;
+  max-width: 400px !important;
+  padding: 1.5rem !important;
+  border-radius: 0.75rem !important;
+}
+
+.swal2-backdrop-show {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.swal2-mobile-title {
+  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.5 !important;
+}
+
+.swal2-mobile-text {
+  font-size: 0.875rem !important;
+  color: #4b5563 !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.5 !important;
+}
+
+.swal2-mobile-actions {
+  gap: 0.75rem !important;
+  margin-top: 1.5rem !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.swal2-mobile-button {
+  flex: 1 !important;
+  min-height: 48px !important;
+  padding: 0.75rem 1rem !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.5rem !important;
+  border: none !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: all 0.2s ease !important;
+  max-width: 150px !important;
+}
+
+.swal2-confirm-mobile {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.swal2-confirm-mobile:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.swal2-cancel-mobile {
+  background-color: #6b7280 !important;
+  color: white !important;
+}
+
+.swal2-cancel-mobile:hover {
+  background-color: #4b5563 !important;
+}
+
+.swal2-mobile-button-single {
+  width: 100% !important;
+  max-width: 200px !important;
+  min-height: 48px !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  border-radius: 0.5rem !important;
+  background-color: #2563eb !important;
+  color: white !important;
+  border: none !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.swal2-mobile-button-single:hover {
+  background-color: #1d4ed8 !important;
+}
+
+.swal2-actions {
+  gap: 0.75rem !important;
+  margin-top: 1.5rem !important;
+  justify-content: center !important;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+  min-height: 48px !important;
+  padding: 0.75rem 1.5rem !important;
+  font-size: 1rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 500 !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .swal2-mobile-popup {
+    width: 95vw !important;
+    padding: 1rem !important;
+  }
+  
+  .swal2-mobile-title {
+    font-size: 1rem !important;
+  }
+  
+  .swal2-mobile-text {
+    font-size: 0.8rem !important;
+  }
+  
+  .swal2-mobile-button {
+    font-size: 0.875rem !important;
+    padding: 0.625rem 0.75rem !important;
+  }
+  
+  .swal2-mobile-button-single {
+    font-size: 0.875rem !important;
+    padding: 0.625rem 1rem !important;
+  }
+}
+
+/* Ensure SweetAlert is above everything */
+.swal2-container.swal2-backdrop-show,
+.swal2-container.swal2-shown {
+  z-index: 2147483647 !important; /* Maximum z-index value */
+}
+
+.swal2-container,
+.swal2-backdrop-show,
+.swal2-backdrop-fade {
+  z-index: 2147483647 !important;
+}
+
+.swal2-popup {
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure SweetAlert mobile elements have maximum z-index */
+.swal2-mobile-container {
+  z-index: 2147483647 !important;
+}
+
+.swal2-mobile-popup {
+  z-index: 2147483647 !important;
+}
+
+/* Force all SweetAlert elements to be clickable */
+[class*="swal2"] {
+  pointer-events: auto !important;
+}
+
+/* Mobile dialog scroll styles */
+.mobile-dialog-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-dialog-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Toast styling for mobile */
+.swal2-mobile-toast {
+  z-index: 2147483647 !important;
+  max-width: 90vw !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+@media (max-width: 640px) {
+  .swal2-toast {
+    max-width: 90vw !important;
+    right: 1rem !important;
+    top: 1rem !important;
+    z-index: 2147483647 !important;
+  }
+}
+
+/* Override any conflicting z-index from radix-ui dialogs when SweetAlert is open */
+body.swal2-shown [data-radix-portal] {
+  z-index: 50 !important; /* Lower than SweetAlert */
+  pointer-events: none !important; /* Disable interactions when SweetAlert is open */
+}
+
+body.swal2-shown [data-radix-portal] * {
+  z-index: inherit !important;
+  pointer-events: inherit !important;
+}
+
+/* Force SweetAlert elements to always be on top */
+.swal2-container[style*="z-index"] {
+  z-index: 2147483647 !important;
+}
+
+.swal2-popup[style*="z-index"] {
+  z-index: 2147483647 !important;
+}
+
+/* Ensure SweetAlert has pointer events even when within dialog */
+.swal2-container * {
+  pointer-events: auto !important;
+}

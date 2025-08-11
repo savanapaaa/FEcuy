@@ -187,13 +187,38 @@ class ApiClient {
       return response as any
     } catch (error) {
       console.warn("API login failed, using mock authentication")
+      
+      // Mock user roles based on username for development
+      let mockRole: User["role"] = "user"
+      let mockName = "User"
+      
+      if (credentials.username === "superadmin") {
+        mockRole = "superadmin"
+        mockName = "Super Administrator"
+      } else if (credentials.username === "admin") {
+        mockRole = "admin"
+        mockName = "Administrator"
+      } else if (credentials.username === "form") {
+        mockRole = "form"
+        mockName = "Form User"
+      } else if (credentials.username === "review") {
+        mockRole = "review"
+        mockName = "Reviewer"
+      } else if (credentials.username === "validasi") {
+        mockRole = "validasi"
+        mockName = "Validator"
+      } else if (credentials.username === "rekap") {
+        mockRole = "rekap"
+        mockName = "Rekap User"
+      }
+      
       // Fallback for development
       const mockUser: User = {
         id: "1",
         username: credentials.username,
         email: `${credentials.username}@example.com`,
-        role: "admin",
-        name: "Admin User",
+        role: mockRole,
+        name: mockName,
       }
 
       const mockToken = "mock-jwt-token"

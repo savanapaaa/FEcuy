@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -18,10 +18,13 @@ import {
   Search,
   RefreshCw,
   TrendingUp,
+  Users,
+  Tag,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import ContentReviewDialog from "@/components/content-review-dialog"
+import { MobileContentReviewDialog } from "@/components/mobile-content-review-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
 import { getReviews } from "@/lib/api-client"
@@ -136,7 +139,7 @@ export default function ReviewPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [showStats, setShowStats] = useState(false)
   const { toast } = useToast()
-  const isMobile = useMobile()
+  const { isMobile } = useMobile()
   const router = useRouter()
 
   console.log("🚀 ReviewPage component loaded")
@@ -154,7 +157,7 @@ export default function ReviewPage() {
             const testSubmissions = [
               {
                 id: Date.now(),
-                noComtab: "20250806101530/IKP/08/2025",
+                noComtab: "20250808101530/IKP/08/2025",
                 pin: "1234",
                 tema: "Kesehatan",
                 judul: "Kampanye Hidup Sehat",
@@ -162,12 +165,12 @@ export default function ReviewPage() {
                 mediaPemerintah: ["Website", "Instagram"],
                 mediaMassa: ["Kompas", "Detik"],
                 jenisKonten: ["video", "infografis"],
-                tanggalOrder: new Date(),
+                tanggalOrder: new Date("2025-08-05"),
                 petugasPelaksana: "John Doe",
                 supervisor: "Jane Smith",
                 durasi: "30 hari",
                 jumlahProduksi: "5 konten",
-                tanggalSubmit: new Date(),
+                tanggalSubmit: new Date("2025-08-07"),
                 lastModified: new Date(),
                 isConfirmed: true,
                 workflowStage: "review",
@@ -179,15 +182,131 @@ export default function ReviewPage() {
                     mediaPemerintah: ["Instagram", "YouTube"],
                     mediaMassa: ["TV One"],
                     nomorSurat: "001/KEK/2025",
-                    narasiText: "Video edukasi tentang pola hidup sehat",
+                    narasiText: "Video edukasi tentang pola hidup sehat untuk masyarakat umum",
+                    sourceNarasi: ["text"],
+                    sourceAudioDubbing: ["file-audio"],
+                    sourceAudioBacksound: ["file-audio"],
+                    sourcePendukungLainnya: ["video"],
+                    tanggalOrderMasuk: new Date("2025-08-05"),
+                    tanggalJadi: new Date("2025-08-10"),
+                    tanggalTayang: new Date("2025-08-15"),
+                    keterangan: "Konten untuk kampanye kesehatan masyarakat",
+                    status: "pending"
+                  },
+                  {
+                    id: "content-2",
+                    nama: "Infografis Tips Gizi Seimbang",
+                    jenisKonten: "infografis",
+                    mediaPemerintah: ["Website", "Instagram"],
+                    mediaMassa: ["Kompas", "Republika"],
+                    nomorSurat: "002/KEK/2025",
+                    narasiText: "Infografis berisi tips dan panduan gizi seimbang",
+                    sourceNarasi: ["text", "file"],
+                    sourceAudioDubbing: [],
+                    sourceAudioBacksound: [],
+                    sourcePendukungLainnya: ["foto"],
+                    tanggalOrderMasuk: new Date("2025-08-05"),
+                    tanggalJadi: new Date("2025-08-12"),
+                    tanggalTayang: new Date("2025-08-16"),
+                    keterangan: "Infografis untuk edukasi gizi masyarakat",
+                    status: "pending"
+                  }
+                ]
+              },
+              {
+                id: Date.now() + 1,
+                noComtab: "20250808102030/IKP/08/2025",
+                pin: "5678",
+                tema: "Pendidikan",
+                judul: "Program Literasi Digital",
+                jenisMedia: "Digital & Cetak",
+                mediaPemerintah: ["Website", "Facebook", "Majalah"],
+                mediaMassa: ["Tempo", "CNN Indonesia"],
+                jenisKonten: ["video", "artikel", "poster"],
+                tanggalOrder: new Date("2025-08-06"),
+                petugasPelaksana: "Sarah Wilson",
+                supervisor: "Michael Brown",
+                durasi: "45 hari",
+                jumlahProduksi: "8 konten",
+                tanggalSubmit: new Date("2025-08-08"),
+                lastModified: new Date(),
+                isConfirmed: true,
+                workflowStage: "review",
+                contentItems: [
+                  {
+                    id: "content-3",
+                    nama: "Video Tutorial Literasi Digital",
+                    jenisKonten: "video",
+                    mediaPemerintah: ["YouTube", "Facebook"],
+                    mediaMassa: ["Metro TV"],
+                    nomorSurat: "003/EDU/2025",
+                    narasiText: "Video tutorial pembelajaran literasi digital untuk siswa",
+                    sourceNarasi: ["text", "surat"],
+                    sourceAudioDubbing: ["file-audio"],
+                    sourceAudioBacksound: ["file-audio"],
+                    sourcePendukungLainnya: ["video", "foto"],
+                    tanggalOrderMasuk: new Date("2025-08-06"),
+                    tanggalJadi: new Date("2025-08-20"),
+                    tanggalTayang: new Date("2025-08-25"),
+                    keterangan: "Video pembelajaran untuk siswa SD dan SMP",
+                    status: "pending"
+                  },
+                  {
+                    id: "content-4",
+                    nama: "Artikel Pentingnya Literasi Digital",
+                    jenisKonten: "artikel",
+                    mediaPemerintah: ["Website", "Majalah"],
+                    mediaMassa: ["Tempo", "Kompas"],
+                    nomorSurat: "004/EDU/2025",
+                    narasiText: "Artikel mengenai pentingnya literasi digital di era modern",
                     sourceNarasi: ["text"],
                     sourceAudioDubbing: [],
                     sourceAudioBacksound: [],
-                    sourcePendukungLainnya: [],
-                    tanggalOrderMasuk: new Date(),
-                    tanggalJadi: new Date(),
-                    tanggalTayang: new Date(),
-                    keterangan: "Konten untuk kampanye kesehatan",
+                    sourcePendukungLainnya: ["foto"],
+                    tanggalOrderMasuk: new Date("2025-08-06"),
+                    tanggalJadi: new Date("2025-08-18"),
+                    tanggalTayang: new Date("2025-08-22"),
+                    keterangan: "Artikel untuk publikasi media massa",
+                    status: "pending"
+                  }
+                ]
+              },
+              {
+                id: Date.now() + 2,
+                noComtab: "20250808103045/IKP/08/2025",
+                pin: "9012",
+                tema: "Ekonomi",
+                judul: "Sosialisasi UMKM Digital",
+                jenisMedia: "Digital",
+                mediaPemerintah: ["Instagram", "TikTok", "Website"],
+                mediaMassa: ["Bisnis Indonesia", "SWA"],
+                jenisKonten: ["video", "infografis", "carousel"],
+                tanggalOrder: new Date("2025-08-07"),
+                petugasPelaksana: "Ahmad Rizki",
+                supervisor: "Siti Nurhaliza",
+                durasi: "20 hari",
+                jumlahProduksi: "6 konten",
+                tanggalSubmit: new Date("2025-08-08"),
+                lastModified: new Date(),
+                isConfirmed: true,
+                workflowStage: "review",
+                contentItems: [
+                  {
+                    id: "content-5",
+                    nama: "Video Profil UMKM Sukses",
+                    jenisKonten: "video",
+                    mediaPemerintah: ["Instagram", "TikTok"],
+                    mediaMassa: ["Bisnis Indonesia"],
+                    nomorSurat: "005/ECO/2025",
+                    narasiText: "Video profil UMKM yang berhasil go digital",
+                    sourceNarasi: ["text"],
+                    sourceAudioDubbing: ["file-audio"],
+                    sourceAudioBacksound: ["file-audio"],
+                    sourcePendukungLainnya: ["video", "foto"],
+                    tanggalOrderMasuk: new Date("2025-08-07"),
+                    tanggalJadi: new Date("2025-08-27"),
+                    tanggalTayang: new Date("2025-08-30"),
+                    keterangan: "Video inspiratif untuk UMKM lainnya",
                     status: "pending"
                   }
                 ]
@@ -196,6 +315,75 @@ export default function ReviewPage() {
             
             localStorage.setItem("submissions", JSON.stringify(testSubmissions))
             console.log("✅ Test data added! Reload the page.")
+            window.location.reload()
+          }
+          
+          (window as any).addMoreTestData = () => {
+            const existingData = JSON.parse(localStorage.getItem("submissions") || "[]")
+            const additionalSubmissions = [
+              {
+                id: Date.now() + 10,
+                noComtab: "20250808104500/IKP/08/2025",
+                pin: "3456",
+                tema: "Lingkungan",
+                judul: "Kampanye Go Green",
+                jenisMedia: "Digital & Konvensional",
+                mediaPemerintah: ["Instagram", "Facebook", "Radio"],
+                mediaMassa: ["Antara", "Kontan"],
+                jenisKonten: ["video", "audio", "poster"],
+                tanggalOrder: new Date("2025-08-07"),
+                petugasPelaksana: "Eko Prasetyo",
+                supervisor: "Dewi Sartika",
+                durasi: "25 hari",
+                jumlahProduksi: "4 konten",
+                tanggalSubmit: new Date("2025-08-08"),
+                lastModified: new Date(),
+                isConfirmed: true,
+                workflowStage: "review",
+                contentItems: [
+                  {
+                    id: "content-env-1",
+                    nama: "Video Edukasi Reduce Reuse Recycle",
+                    jenisKonten: "video",
+                    mediaPemerintah: ["Instagram", "YouTube"],
+                    mediaMassa: ["Antara"],
+                    nomorSurat: "006/ENV/2025",
+                    narasiText: "Video edukasi tentang pengelolaan sampah dengan konsep 3R",
+                    sourceNarasi: ["text", "file"],
+                    sourceAudioDubbing: ["file-audio"],
+                    sourceAudioBacksound: ["file-audio"],
+                    sourcePendukungLainnya: ["video", "foto"],
+                    tanggalOrderMasuk: new Date("2025-08-07"),
+                    tanggalJadi: new Date("2025-09-01"),
+                    tanggalTayang: new Date("2025-09-05"),
+                    keterangan: "Video untuk kampanye lingkungan hidup",
+                    status: "pending"
+                  },
+                  {
+                    id: "content-env-2",
+                    nama: "Audio Spot Radio Lingkungan",
+                    jenisKonten: "audio",
+                    mediaPemerintah: ["Radio"],
+                    mediaMassa: ["Radio Elshinta"],
+                    nomorSurat: "007/ENV/2025",
+                    narasiText: "Audio spot 30 detik tentang kebersihan lingkungan",
+                    sourceNarasi: ["text"],
+                    sourceAudioDubbing: ["file-audio"],
+                    sourceAudioBacksound: ["file-audio"],
+                    sourcePendukungLainnya: [],
+                    tanggalOrderMasuk: new Date("2025-08-07"),
+                    tanggalJadi: new Date("2025-08-28"),
+                    tanggalTayang: new Date("2025-09-02"),
+                    keterangan: "Audio untuk siaran radio",
+                    status: "pending"
+                  }
+                ]
+              }
+            ]
+            
+            const combined = [...existingData, ...additionalSubmissions]
+            localStorage.setItem("submissions", JSON.stringify(combined))
+            console.log("✅ Additional test data added! Reload the page.")
             window.location.reload()
           }
           
@@ -379,8 +567,8 @@ export default function ReviewPage() {
       const contentItems = sub.contentItems || []
       if (contentItems.length === 0) return true
       // Check if any content items are still pending review
-      const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
-      return hasPendingItems
+      // const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
+      // return hasPendingItems
     })
 
     setSubmissions(reviewSubmissions)
@@ -439,9 +627,9 @@ export default function ReviewPage() {
       <motion.header
         initial={{ y: -50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0 z-50"
+        className="bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm sticky top-0 z-40"
       >
-        <div className={`mx-auto px-4 py-4 ${isMobile ? "max-w-full" : "max-w-4xl"}`}>
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <motion.div
               initial={{ x: -20, opacity: 0 }}
@@ -450,12 +638,13 @@ export default function ReviewPage() {
               className="flex items-center space-x-3 flex-1"
             >
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => router.push("/dashboard/admin")}
-                className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 p-2"
+                className="border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center space-x-2 px-3 py-2"
               >
                 <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Kembali</span>
               </Button>
               <motion.div
                 whileHover={{ rotate: 360 }}
@@ -516,7 +705,7 @@ export default function ReviewPage() {
             transition={{ duration: 0.3 }}
             className="overflow-hidden"
           >
-            <div className={`space-y-4 ${isMobile ? "px-4 py-3 bg-white/50" : "max-w-4xl mx-auto px-4 py-6"}`}>
+            <div className="max-w-7xl mx-auto px-4 py-3 bg-white/50">
               <div className="grid gap-4 grid-cols-2">
                 <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-lg">
                   <CardContent className="p-4">
@@ -575,7 +764,7 @@ export default function ReviewPage() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className={`space-y-4 pb-20 ${isMobile ? "px-4 py-4" : "max-w-4xl mx-auto px-4 py-6"}`}>
+      <main className="max-w-7xl mx-auto px-4 py-4 space-y-4 pb-20">
         {/* Results Info */}
         <div className="flex items-center justify-between text-sm text-blue-600">
           <span>Menampilkan {filteredSubmissions.length} dokumen</span>
@@ -634,126 +823,134 @@ export default function ReviewPage() {
                 </Card>
               </motion.div>
             ) : (
-              filteredSubmissions.map((submission, index) => {
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
+                {filteredSubmissions.map((submission, index) => {
                 const submissionStatus = getSubmissionStatus(submission)
                 const contentItems = submission.contentItems || []
                 const pendingCount = contentItems.filter((item) => !item.status || item.status === "pending").length
 
+                const approvedItems = contentItems.filter((item) => item.status === "approved")
+                const rejectedItems = contentItems.filter((item) => item.status === "rejected")
+                const publishedItems = contentItems.filter((item) => item.isTayang === true)
+                const outputItems = approvedItems.filter((item) => item.hasilProdukFile || item.hasilProdukLink)
+
                 return (
                   <motion.div
                     key={submission.id}
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: -50, opacity: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    className="group"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <Card className="bg-white/90 backdrop-blur-sm border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-                      <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200 p-4">
+                    <Card className="bg-white/80 backdrop-blur-sm border-blue-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
+                      <CardHeader className="pb-3 sm:pb-4">
                         <div className="flex items-start justify-between">
-                          <div className="space-y-2 flex-1 min-w-0">
-                            <div className="flex items-center space-x-3">
-                              <CardTitle className="font-bold text-gray-900 group-hover:text-blue-800 transition-colors text-base truncate">
+                          <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                            <div className="p-1.5 sm:p-2 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg sm:rounded-xl flex-shrink-0">
+                              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base sm:text-lg font-bold text-blue-900 truncate">
                                 {submission.judul}
                               </CardTitle>
-                              {getStatusBadge(submissionStatus)}
-                              {pendingCount > 0 && (
-                                <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
-                                  {pendingCount} Pending Review
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600 flex-wrap gap-2">
-                              <div className="flex items-center space-x-1">
-                                <FileText className="h-3 w-3" />
-                                <span className="truncate">{submission.noComtab}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <User className="h-3 w-3" />
-                                <span className="truncate">{submission.tema}</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>
-                                  {submission.tanggalSubmit
-                                    ? new Date(submission.tanggalSubmit).toLocaleDateString("id-ID")
-                                    : "Tidak diketahui"}
-                                </span>
-                              </div>
+                              <CardDescription className="text-xs sm:text-sm text-gray-600 mt-1">
+                                {submission.noComtab}
+                              </CardDescription>
                             </div>
                           </div>
-                          <Button
-                            onClick={() => handleReviewSubmission(submission)}
-                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 text-xs px-3 py-2"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Review
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-4">
-                        <div className="space-y-4">
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mb-2 text-sm">Konten Items:</h4>
-                            <div className="space-y-2">
-                              {contentItems.slice(0, 2).map((item, itemIndex) => (
-                                <div
-                                  key={itemIndex}
-                                  className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200"
-                                >
-                                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                    <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-blue-900 text-sm truncate">{item.nama}</p>
-                                      <p className="text-sm text-blue-600 truncate">{item.jenisKonten}</p>
-                                    </div>
-                                  </div>
-                                  {getStatusBadge(item.status)}
-                                </div>
-                              ))}
-                              {contentItems.length > 2 && (
-                                <div className="text-center">
-                                  <Badge className="bg-gray-100 text-gray-600 border-gray-200 text-xs">
-                                    +{contentItems.length - 2} konten lainnya
-                                  </Badge>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {/* Action Summary */}
-                          <div className="flex items-center text-xs text-gray-600 pt-2 border-t border-gray-100 flex-wrap gap-3">
-                            <div className="flex items-center space-x-1">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                              <span>{contentItems.filter((item) => item.status === "approved").length} Disetujui</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <XCircle className="h-4 w-4 text-red-500" />
-                              <span>{contentItems.filter((item) => item.status === "rejected").length} Ditolak</span>
-                            </div>
-                            <div className="flex items-center space-x-1">
-                              <Clock className="h-4 w-4 text-orange-500" />
-                              <span>{pendingCount} Pending</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            {submission.buktiMengetahui && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-200 text-blue-600 hover:bg-blue-50 bg-transparent"
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                Bukti
-                              </Button>
+                          <div className="flex flex-col items-end space-y-1 sm:space-y-2 flex-shrink-0">
+                            {getStatusBadge(submissionStatus)}
+                            {pendingCount > 0 && (
+                              <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {pendingCount} Review
+                              </Badge>
                             )}
                           </div>
+                        </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-3 sm:space-y-4">
+                        {/* Content Statistics */}
+                        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                          <div className="text-center p-2 sm:p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                            <p className="text-sm sm:text-lg font-bold text-gray-900">{contentItems.length}</p>
+                            <p className="text-xs text-gray-600">Total</p>
+                          </div>
+                          <div className="text-center p-2 sm:p-3 bg-gradient-to-br from-green-50 to-green-100 rounded-lg">
+                            <p className="text-sm sm:text-lg font-bold text-green-600">{approvedItems.length}</p>
+                            <p className="text-xs text-green-700">Disetujui</p>
+                          </div>
+                          <div className="text-center p-2 sm:p-3 bg-gradient-to-br from-red-50 to-red-100 rounded-lg">
+                            <p className="text-sm sm:text-lg font-bold text-red-600">{rejectedItems.length}</p>
+                            <p className="text-xs text-red-700">Ditolak</p>
+                          </div>
+                          <div className="text-center p-2 sm:p-3 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg">
+                            <p className="text-sm sm:text-lg font-bold text-orange-600">{pendingCount}</p>
+                            <p className="text-xs text-orange-700">Pending</p>
+                          </div>
+                        </div>
+
+                        {/* Document Information */}
+                        <div className="space-y-2 sm:space-y-3">
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <div className="flex items-center space-x-2 text-gray-600">
+                              <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span>Petugas:</span>
+                            </div>
+                            <span className="font-medium text-gray-900 truncate max-w-32 sm:max-w-48">
+                              {submission.petugasPelaksana}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <div className="flex items-center space-x-2 text-gray-600">
+                              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span>Supervisor:</span>
+                            </div>
+                            <span className="font-medium text-gray-900 truncate max-w-32 sm:max-w-48">{submission.supervisor}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <div className="flex items-center space-x-2 text-gray-600">
+                              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span>Submit:</span>
+                            </div>
+                            <span className="font-medium text-gray-900">
+                              {submission.tanggalSubmit
+                                ? new Date(submission.tanggalSubmit).toLocaleDateString("id-ID")
+                                : "Tidak diketahui"}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs sm:text-sm">
+                            <div className="flex items-center space-x-2 text-gray-600">
+                              <Tag className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span>Tema:</span>
+                            </div>
+                            <Badge variant="outline" className="border-blue-200 text-blue-700 text-xs">
+                              {submission.tema}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="pt-2 border-t border-gray-100">
+                          <Button
+                            onClick={() => handleReviewSubmission(submission)}
+                            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            Review Dokumen
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
                   </motion.div>
                 )
-              })
+              })}
+              </div>
             )}
           </AnimatePresence>
         </motion.div>
@@ -761,13 +958,25 @@ export default function ReviewPage() {
 
       {/* Review Dialog */}
       {selectedSubmission && (
-        <ContentReviewDialog
-          isOpen={isDialogOpen}
-          onOpenChange={handleDialogOpenChange}
-          submission={selectedSubmission}
-          onUpdate={handleUpdate}
-          onToast={(message, type) => toast({ title: message, variant: type === "error" ? "destructive" : "default" })}
-        />
+        <>
+          {isMobile ? (
+            <MobileContentReviewDialog
+              isOpen={isDialogOpen}
+              onOpenChange={handleDialogOpenChange}
+              submission={selectedSubmission}
+              onUpdate={handleUpdate}
+              onToast={(message, type) => toast({ title: message, variant: type === "error" ? "destructive" : "default" })}
+            />
+          ) : (
+            <ContentReviewDialog
+              isOpen={isDialogOpen}
+              onOpenChange={handleDialogOpenChange}
+              submission={selectedSubmission}
+              onUpdate={handleUpdate}
+              onToast={(message, type) => toast({ title: message, variant: type === "error" ? "destructive" : "default" })}
+            />
+          )}
+        </>
       )}
     </div>
   )

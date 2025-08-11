@@ -12,8 +12,14 @@ interface FormHeaderProps {
 }
 
 export const FormHeader = ({ isEditMode = false, isMobile = false }: FormHeaderProps) => {
-  const {formData, currentStep } = useFormHandler()
+  const { formData, currentStep } = useFormHandler()
 
-
-
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="text-center mb-8"
+    >
+    </motion.div>
+  )
 }
