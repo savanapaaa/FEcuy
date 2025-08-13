@@ -189,28 +189,6 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
   const unpublishedItems = approvedItems.filter((item) => item.isTayang !== true)
   const confirmedItems = contentItems.filter((item) => item.isConfirmed === true)
 
-  // Tab definitions
-  const tabs = [
-    { id: "overview", label: "Overview", icon: Activity, count: null },
-    {
-      id: "files",
-      label: "File",
-      icon: FileText,
-      count: (submission.dokumenPendukung?.length || 0) + (submission.uploadedBuktiMengetahui ? 1 : 0),
-    },
-    { id: "content", label: "Konten", icon: Layers, count: contentItems.length },
-    { id: "approved", label: "Disetujui", icon: CheckCircle, count: approvedItems.length },
-    {
-      id: "output",
-      label: "Output",
-      icon: Sparkles,
-      count: approvedItems.filter(
-        (item) =>
-          item.hasilProdukValidasiFile || item.hasilProdukValidasiLink || item.hasilProdukFile || item.hasilProdukLink,
-      ).length,
-    },
-  ]
-
   // Enhanced date formatting functions with better error handling
   const formatDate = (date: Date | string | undefined) => {
     if (!date) return "Belum diisi"
@@ -686,49 +664,60 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
   const tayangItems = submission.contentItems?.filter((item) => item.isTayang).length || 0
   const takedownItemsCalc = submission.contentItems?.filter((item) => item.isTakedown).length || 0
 
+  const tabs = [
+    { id: "overview", label: "Overview", icon: Activity, count: null },
+    {
+      id: "files",
+      label: "File",
+      icon: FileText,
+      count: (submission.dokumenPendukung?.length || 0) + (submission.uploadedBuktiMengetahui ? 1 : 0),
+    },
+    { id: "content", label: "Konten", icon: Layers, count: contentItems.length },
+    { id: "approved", label: "Disetujui", icon: CheckCircle, count: approvedItems.length },
+    {
+      id: "output",
+      label: "Output",
+      icon: Sparkles,
+      count: approvedItems.filter(
+        (item) =>
+          item.hasilProdukValidasiFile || item.hasilProdukValidasiLink || item.hasilProdukFile || item.hasilProdukLink,
+      ).length,
+    },
+  ]
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          {/* Header - Clean White */}
-          <DialogHeader className="border-b bg-white p-6 flex-shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-bold text-gray-900">{submission.judul}</DialogTitle>
-                  <DialogDescription className="text-gray-600 mt-1">
-                    {submission.noComtab}
-                  </DialogDescription>
-                  <div className="flex items-center space-x-4 mt-2 text-gray-500 text-sm">
-                    <span className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{format(new Date(submission.tanggalSubmit), "dd MMM yyyy")}</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <User className="h-4 w-4" />
-                      <span>{submission.petugasPelaksana}</span>
-                    </span>
+        <DialogContent className="fixed max-w-6xl w-[90vw] max-h-[90vh] h-[90vh] overflow-hidden">
+          <DialogHeader className="border-b pb-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                    <FileText className="h-5 w-5 text-white" />
                   </div>
-                </div>
+                  <span>{submission.judul}</span>
+                </DialogTitle>
+                <DialogDescription className="text-gray-600 mt-2 flex items-center space-x-4">
+                  <span className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>{format(new Date(submission.tanggalSubmit), "dd MMM yyyy")}</span>
+                  </span>
+                  <span className="flex items-center space-x-1">
+                    <User className="h-4 w-4" />
+                    <span>{submission.petugasPelaksana}</span>
+                  </span>
+                </DialogDescription>
               </div>
               <div className="flex items-center space-x-2">
-                {submission.isOutputValidated && (
-                  <Badge className="bg-green-100 text-green-800">
-                    <Shield className="h-4 w-4 mr-1" />
-                    Validated
-                  </Badge>
-                )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="text-red-300 hover:bg-red-500/20 border-red-300/30 bg-transparent"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 bg-transparent"
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
+                      <Trash2 className="h-4 w-4 mr-2" />
                       Hapus
                     </Button>
                   </AlertDialogTrigger>
@@ -751,110 +740,237 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
               </div>
             </div>
 
-            {/* Stats Grid - Clean White */}
+            {/* Quick Stats */}
             <div className="grid grid-cols-5 gap-4 mt-4">
-              <div className="text-center p-3 bg-blue-50 rounded-lg border">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">{totalItems}</div>
                 <div className="text-xs text-blue-600">Total Item</div>
               </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg border">
+              <div className="text-center p-3 bg-green-50 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">{approvedItemsCalc}</div>
                 <div className="text-xs text-green-600">Disetujui</div>
               </div>
-              <div className="text-center p-3 bg-red-50 rounded-lg border">
+              <div className="text-center p-3 bg-red-50 rounded-lg">
                 <div className="text-2xl font-bold text-red-600">{rejectedItemsCalc}</div>
                 <div className="text-xs text-red-600">Ditolak</div>
               </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg border">
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
                 <div className="text-2xl font-bold text-purple-600">{tayangItems}</div>
                 <div className="text-xs text-purple-600">Tayang</div>
               </div>
-              <div className="text-center p-3 bg-orange-50 rounded-lg border">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-5 gap-4 mt-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{totalItems}</div>
+                <div className="text-xs text-blue-600">Total Item</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{approvedItemsCalc}</div>
+                <div className="text-xs text-green-600">Disetujui</div>
+              </div>
+              <div className="text-center p-3 bg-red-50 rounded-lg">
+                <div className="text-2xl font-bold text-red-600">{rejectedItemsCalc}</div>
+                <div className="text-xs text-red-600">Ditolak</div>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">{tayangItems}</div>
+                <div className="text-xs text-purple-600">Tayang</div>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-lg">
                 <div className="text-2xl font-bold text-orange-600">{takedownItemsCalc}</div>
                 <div className="text-xs text-orange-600">Takedown</div>
               </div>
             </div>
-          </DialogHeader>
 
-          {/* Tab Navigation */}
-          <div className="bg-white border-b border-gray-200 flex-shrink-0 shadow-sm px-6 pt-4">
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
+            {/* Tab Navigation */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mt-4">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex-1 justify-center ${
                     activeTab === tab.id
                       ? "bg-white text-blue-600 shadow-sm"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
-                  <tab.icon className="h-4 w-4 flex-shrink-0" />
+                  <tab.icon className="h-4 w-4" />
                   <span>{tab.label}</span>
                   {tab.count !== null && (
-                    <Badge variant="secondary" className="ml-1 h-5 text-xs px-1.5">
+                    <Badge variant="secondary" className="ml-1 h-5 text-xs">
                       {tab.count}
                     </Badge>
                   )}
                 </button>
               ))}
             </div>
-          </div>
+          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto space-y-6 py-4 px-6">
+          {/* Tab Content */}
+          <div className="flex-1 overflow-y-auto min-h-0">
             {activeTab === "overview" && (
-              <>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
                 {/* Basic Information */}
                 <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <FileText className="h-5 w-5 mr-2 text-blue-600" />
-                  Informasi Dasar
-                </h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Tema</Label>
-                      <p className="text-sm text-gray-900 capitalize">{submission.tema}</p>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                      Informasi Dasar
+                    </h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Tema</Label>
+                          <p className="text-sm text-gray-900 capitalize">{submission.tema}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">No. Comtab</Label>
+                          <p className="text-sm text-gray-900 font-mono">{submission.noComtab}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Petugas Pelaksana</Label>
+                          <p className="text-sm text-gray-900">{submission.petugasPelaksana}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Supervisor</Label>
+                          <p className="text-sm text-gray-900">{submission.supervisor}</p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Tanggal Submit</Label>
+                          <p className="text-sm text-gray-900">
+                            {format(new Date(submission.tanggalSubmit), "dd MMMM yyyy, HH:mm")}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-sm font-medium text-gray-600">Jumlah Produksi</Label>
+                          <p className="text-sm text-gray-900">{submission.jumlahProduksi} item</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">No. Comtab</Label>
-                      <p className="text-sm text-gray-900 font-mono">{submission.noComtab}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Petugas Pelaksana</Label>
-                      <p className="text-sm text-gray-900">{submission.petugasPelaksana}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Supervisor</Label>
-                      <p className="text-sm text-gray-900">{submission.supervisor}</p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Tanggal Submit</Label>
-                      <p className="text-sm text-gray-900">
-                        {format(new Date(submission.tanggalSubmit), "dd MMMM yyyy, HH:mm")}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium text-gray-600">Jumlah Produksi</Label>
-                      <p className="text-sm text-gray-900">{submission.jumlahProduksi} item</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
-            {/* Content Items */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <PlayCircle className="h-5 w-5 mr-2 text-purple-600" />
-                  Detail Konten
-                </h3>
-                <div className="space-y-4">
-                  {submission.contentItems?.map((item, index) => (
+                {/* Content Items Summary */}
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <PlayCircle className="h-5 w-5 mr-2 text-purple-600" />
+                      Ringkasan Konten
+                    </h3>
+                    <div className="text-center text-gray-500">
+                      {submission.contentItems?.length || 0} item konten tersedia.
+                      Gunakan tab "Konten" untuk melihat detail lengkap.
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === "files" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                {/* Files Tab Content */}
+                {submission.dokumenPendukung && submission.dokumenPendukung.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                        Dokumen Pendukung
+                      </h3>
+                      <div className="space-y-3">
+                        {submission.dokumenPendukung.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                            <div className="flex items-center space-x-3">
+                              {getFileIcon(file.type)}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{getFileDisplayName(file.url)}</p>
+                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleFileView(file.url)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Lihat
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {submission.uploadedBuktiMengetahui && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-green-600" />
+                        Bukti Mengetahui
+                      </h3>
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800">
+                              {getFileDisplayName(submission.uploadedBuktiMengetahui)}
+                            </p>
+                            <p className="text-xs text-green-600">Bukti persetujuan Kepala Bidang</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFileView(submission.uploadedBuktiMengetahui)}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Lihat
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {(!submission.dokumenPendukung || submission.dokumenPendukung.length === 0) && 
+                 !submission.uploadedBuktiMengetahui && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <div className="text-center text-gray-500">
+                        <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                        <p>Tidak ada file yang ditemukan.</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "content" && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <PlayCircle className="h-5 w-5 mr-2 text-purple-600" />
+                      Detail Konten
+                    </h3>
+                    <div className="space-y-4">
+                      {submission.contentItems?.map((item: any, index: number) => (
                     <motion.div
                       key={item.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1065,126 +1181,111 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
                 </CardContent>
               </Card>
             )}
-              </>
+              </motion.div>
             )}
 
             {activeTab === "files" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">File Dokumen</h3>
-                {submission.dokumenPendukung && submission.dokumenPendukung.length > 0 ? (
-                  submission.dokumenPendukung.map((file, index) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <FileText className="h-5 w-5 text-blue-600" />
-                            <span className="text-sm font-medium">{getFileDisplayName(file)}</span>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                {/* Files Tab Content */}
+                {submission.dokumenPendukung && submission.dokumenPendukung.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
+                        Dokumen Pendukung
+                      </h3>
+                      <div className="space-y-3">
+                        {submission.dokumenPendukung.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                            <div className="flex items-center space-x-3">
+                              {getFileIcon(file.type)}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{getFileDisplayName(file.url)}</p>
+                                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleFileView(file.url)}
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Lihat
+                            </Button>
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => handleFileView(file)}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Lihat
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-center py-8">Tidak ada file dokumen</p>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
-              </div>
+
+                {submission.uploadedBuktiMengetahui && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Shield className="h-5 w-5 mr-2 text-green-600" />
+                        Bukti Mengetahui
+                      </h3>
+                      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center space-x-3">
+                          <FileText className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="text-sm font-medium text-green-800">
+                              {getFileDisplayName(submission.uploadedBuktiMengetahui)}
+                            </p>
+                            <p className="text-xs text-green-600">Bukti persetujuan Kepala Bidang</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleFileView(submission.uploadedBuktiMengetahui)}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Lihat
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
             )}
 
+            {/* Add other tab contents here */}
             {activeTab === "content" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Konten Items</h3>
-                {submission.contentItems && submission.contentItems.length > 0 ? (
-                  submission.contentItems.map((item: any, index: any) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{item.judul || 'Konten ' + (index + 1)}</span>
-                            <Badge variant={item.status === 'approved' ? 'default' : item.status === 'rejected' ? 'destructive' : 'secondary'}>
-                              {item.status || 'pending'}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">{item.jenisKonten}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-center py-8">Tidak ada konten items</p>
-                )}
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                <p className="text-gray-500">Content tab coming soon...</p>
+              </motion.div>
             )}
 
             {activeTab === "approved" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Konten Disetujui</h3>
-                {approvedItems.length > 0 ? (
-                  approvedItems.map((item: any, index: any) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{item.judul || 'Konten ' + (index + 1)}</span>
-                            <Badge variant="default">Disetujui</Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">{item.jenisKonten}</p>
-                          {item.isTayang && <Badge variant="secondary" className="mr-2">Tayang</Badge>}
-                          {item.isTakedown && <Badge variant="destructive" className="mr-2">Takedown</Badge>}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-center py-8">Tidak ada konten yang disetujui</p>
-                )}
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                <p className="text-gray-500">Approved tab coming soon...</p>
+              </motion.div>
             )}
 
             {activeTab === "output" && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">Output Validasi</h3>
-                {approvedItems.filter((item: any) => 
-                  item.hasilProdukValidasiFile || item.hasilProdukValidasiLink || item.hasilProdukFile || item.hasilProdukLink
-                ).length > 0 ? (
-                  approvedItems.filter((item: any) => 
-                    item.hasilProdukValidasiFile || item.hasilProdukValidasiLink || item.hasilProdukFile || item.hasilProdukLink
-                  ).map((item: any, index: any) => (
-                    <Card key={index}>
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{item.judul || 'Output ' + (index + 1)}</span>
-                            <Badge variant="default">Valid</Badge>
-                          </div>
-                          {item.hasilProdukValidasiFile && (
-                            <div className="flex items-center space-x-2">
-                              <FileText className="h-4 w-4 text-blue-600" />
-                              <span className="text-sm">File: {getFileDisplayName(item.hasilProdukValidasiFile)}</span>
-                              <Button variant="outline" size="sm" onClick={() => handleFileView(item.hasilProdukValidasiFile)}>
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          {item.hasilProdukValidasiLink && (
-                            <div className="flex items-center space-x-2">
-                              <LinkIcon className="h-4 w-4 text-green-600" />
-                              <a href={item.hasilProdukValidasiLink} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                                {item.hasilProdukValidasiLink}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-center py-8">Tidak ada output validasi</p>
-                )}
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6 py-4"
+              >
+                <p className="text-gray-500">Output tab coming soon...</p>
+              </motion.div>
             )}
           </div>
         </DialogContent>

@@ -767,8 +767,8 @@ export function MobileRekapDetailDialog({
                   <FileText className="h-3 w-3 text-white" />
                 </div>
                 <div className="flex-1 min-w-0 mr-2">
-                  <DialogTitle className="text-sm font-bold text-white truncate">{submission.noComtab}</DialogTitle>
-                  <DialogDescription className="text-green-100 text-xs truncate">{submission.judul}</DialogDescription>
+                  <DialogTitle className="text-sm font-bold text-white truncate">{submission.judul}</DialogTitle>
+                  <DialogDescription className="text-green-100 text-xs truncate">{submission.noComtab}</DialogDescription>
                 </div>
               </div>
               <div className="flex items-center space-x-1 flex-shrink-0">

@@ -32,7 +32,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
       return
     }
 
-    if (requireAdmin && (!user || user.role !== "admin")) {
+    if (requireAdmin && (!user || (user.role !== "admin" && user.role !== "superadmin"))) {
       router.push("/admin/login")
       return
     }
@@ -81,7 +81,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     )
   }
 
-  if (requireAdmin && (!user || user.role !== "admin")) {
+  if (requireAdmin && (!user || (user.role !== "admin" && user.role !== "superadmin"))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <motion.div
