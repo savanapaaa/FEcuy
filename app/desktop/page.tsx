@@ -94,6 +94,7 @@ export default function DesktopPage() {
   const getRoleDisplayName = (role: string) => {
     const roleNames = {
       superadmin: "Super Administrator",
+      admin: "Administrator",
       form: "Form User",
       review: "Reviewer",
       validasi: "Validator",
@@ -105,6 +106,7 @@ export default function DesktopPage() {
   const getRoleColor = (role: string) => {
     const roleColors = {
       superadmin: "from-purple-600 to-pink-600",
+      admin: "from-slate-600 to-gray-600",
       form: "from-blue-600 to-cyan-600",
       review: "from-green-600 to-emerald-600",
       validasi: "from-orange-600 to-red-600",
@@ -114,7 +116,7 @@ export default function DesktopPage() {
   }
 
   return (
-    <RoleGuard allowedRoles={["superadmin", "form", "review", "validasi", "rekap"]}>
+    <RoleGuard allowedRoles={["superadmin", "admin", "form", "review", "validasi", "rekap"]}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
         {/* Background Elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -226,18 +228,19 @@ export default function DesktopPage() {
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
               Selamat datang,{" "}
               <span className={`bg-gradient-to-r ${getRoleColor(user?.role || "")} bg-clip-text text-transparent`}>
-                {user?.fullName}!
+                {user?.username}!
               </span>
             </h2>
           </motion.div>
 
           {/* Role-based Action Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16"
-          >
+          <div className="flex justify-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="flex flex-wrap justify-center gap-8 mb-16 max-w-7xl"
+            >
             {/* Superadmin Cards */}
             {user?.role === "superadmin" && (
               <>
@@ -309,6 +312,65 @@ export default function DesktopPage() {
                     <div className="flex items-center justify-center space-x-2 text-purple-600 group-hover:text-pink-600 transition-colors">
                       <Users className="h-4 w-4" />
                       <span className="font-medium">Kelola User</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Admin Cards */}
+            {user?.role === "admin" && (
+              <>
+                {/* Form Pengajuan Konten */}
+                <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+                  <CardContent className="p-8 text-center" onClick={() => router.push("/desktop/form")}>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="p-6 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-3xl mx-auto mb-6 w-fit group-hover:shadow-2xl"
+                    >
+                      <Plus className="h-12 w-12 text-white" />
+                    </motion.div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">Form Pengajuan Konten</h3>
+                    <div className="flex items-center justify-center space-x-2 text-blue-600 group-hover:text-cyan-600 transition-colors">
+                      <Zap className="h-4 w-4" />
+                      <span className="font-medium">Mulai Pengajuan</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Riwayat Pengajuan */}
+                <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+                  <CardContent className="p-8 text-center" onClick={navigateToHistory}>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: -5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="p-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl mx-auto mb-6 w-fit group-hover:shadow-2xl"
+                    >
+                      <History className="h-12 w-12 text-white" />
+                    </motion.div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">Riwayat Pengajuan</h3>
+                    <div className="flex items-center justify-center space-x-2 text-green-600 group-hover:text-emerald-600 transition-colors">
+                      <Target className="h-4 w-4" />
+                      <span className="font-medium">Lihat Riwayat</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Dashboard Admin */}
+                <Card className="bg-white/80 backdrop-blur-sm border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group cursor-pointer">
+                  <CardContent className="p-8 text-center" onClick={() => router.push("/dashboard/admin")}>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="p-6 bg-gradient-to-r from-slate-500 to-gray-600 rounded-3xl mx-auto mb-6 w-fit group-hover:shadow-2xl"
+                    >
+                      <Shield className="h-12 w-12 text-white" />
+                    </motion.div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">Dashboard Admin</h3>
+                    <div className="flex items-center justify-center space-x-2 text-slate-600 group-hover:text-gray-600 transition-colors">
+                      <Settings className="h-4 w-4" />
+                      <span className="font-medium">Panel Admin</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -479,6 +541,7 @@ export default function DesktopPage() {
               </>
             )}
           </motion.div>
+          </div>
         </main>
       </div>
     </RoleGuard>

@@ -106,7 +106,7 @@ interface FilterState {
 
 export default function RekapPage() {
   const router = useRouter()
-  const isMobile = useMobile()
+  const { isMobile, isInitialized } = useMobile()
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [filteredSubmissions, setFilteredSubmissions] = useState<Submission[]>([])
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
@@ -153,7 +153,8 @@ export default function RekapPage() {
     const petugasList = ["Ahmad Rizki", "Siti Nurjannah", "Budi Santoso", "Dewi Lestari", "Eko Prasetyo", "Fitri Handayani"]
     const supervisorList = ["Dr. Agus Wibowo", "Ir. Lina Marlina", "Drs. Roni Saputra", "Sri Mulyani, S.Kom"]
     const mediaTypes = ["Video", "Audio", "Grafis", "Foto", "Artikel"]
-    const contentTypes = ["Berita", "Tutorial", "Dokumentasi", "Promosi", "Edukasi", "Event"]
+    const contentTypes = ["infografis", "naskah berita", "audio", "video", "fotografis", "bumper"]
+    const themes = ["sosial", "ekonomi", "lingkungan"]
 
     const dummySubmissions: Submission[] = [
       {
@@ -171,13 +172,13 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(20),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(15),
-        tema: "Smart City",
+        tema: "sosial",
         workflowStage: "completed",
         contentItems: [
           {
             id: "1",
             nama: "Peluncuran Smart City Surabaya",
-            jenisKonten: "Berita",
+            jenisKonten: "naskah berita",
             mediaPemerintah: ["Website Resmi", "Media Sosial"],
             mediaMassa: ["Kompas", "Detik"],
             nomorSurat: "001/SMART/2024",
@@ -193,7 +194,7 @@ export default function RekapPage() {
           {
             id: "2",
             nama: "Cara Menggunakan Aplikasi Smart City",
-            jenisKonten: "Tutorial",
+            jenisKonten: "video",
             mediaPemerintah: ["Website Resmi"],
             mediaMassa: ["YouTube"],
             nomorSurat: "002/SMART/2024",
@@ -223,13 +224,13 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(22),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(18),
-        tema: "Lingkungan",
+        tema: "lingkungan",
         workflowStage: "completed",
         contentItems: [
           {
             id: "3",
             nama: "Poster Kampanye Kebersihan",
-            jenisKonten: "Promosi",
+            jenisKonten: "infografis",
             mediaPemerintah: ["Billboard", "Media Sosial"],
             mediaMassa: ["Instagram", "Facebook"],
             nomorSurat: "003/KEBERSIHAN/2024",
@@ -244,7 +245,7 @@ export default function RekapPage() {
           {
             id: "4",
             nama: "Banner Digital",
-            jenisKonten: "Promosi",
+            jenisKonten: "fotografis",
             mediaPemerintah: ["Website"],
             mediaMassa: ["Instagram"],
             nomorSurat: "004/KEBERSIHAN/2024",
@@ -272,13 +273,13 @@ export default function RekapPage() {
         tanggalSubmit: getRandomDate(32),
         tanggalReview: getRandomDate(26),
         isOutputValidated: false,
-        tema: "Inovasi",
+        tema: "ekonomi",
         workflowStage: "review",
         contentItems: [
           {
             id: "5",
             nama: "Episode 1: Digital Transformation",
-            jenisKonten: "Edukasi",
+            jenisKonten: "audio",
             mediaPemerintah: ["Podcast Platform"],
             mediaMassa: ["Spotify", "Google Podcast"],
             nomorSurat: "005/PODCAST/2024",
@@ -293,7 +294,7 @@ export default function RekapPage() {
           {
             id: "6",
             nama: "Episode 2: E-Government",
-            jenisKonten: "Edukasi",
+            jenisKonten: "bumper",
             mediaPemerintah: ["Podcast Platform"],
             mediaMassa: ["Spotify"],
             nomorSurat: "006/PODCAST/2024",
@@ -322,13 +323,13 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(12),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(8),
-        tema: "Budaya",
+        tema: "sosial",
         workflowStage: "completed",
         contentItems: [
           {
             id: "7",
             nama: "Foto Opening Ceremony",
-            jenisKonten: "Dokumentasi",
+            jenisKonten: "fotografis",
             mediaPemerintah: ["Website Resmi", "Gallery"],
             mediaMassa: ["Instagram", "Facebook"],
             nomorSurat: "007/BUDAYA/2024",
@@ -343,7 +344,7 @@ export default function RekapPage() {
           {
             id: "8",
             nama: "Foto Pertunjukan Tradisional",
-            jenisKonten: "Dokumentasi",
+            jenisKonten: "video",
             mediaPemerintah: ["Website Resmi"],
             mediaMassa: ["Instagram"],
             nomorSurat: "008/BUDAYA/2024",
@@ -372,7 +373,7 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(30),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(25),
-        tema: "Pariwisata",
+        tema: "ekonomi",
         workflowStage: "completed",
         contentItems: [
           {
@@ -422,13 +423,13 @@ export default function RekapPage() {
         tanggalSubmit: getRandomDate(12),
         tanggalReview: getRandomDate(8),
         isOutputValidated: false,
-        tema: "Pelayanan Publik",
+        tema: "lingkungan",
         workflowStage: "validation",
         contentItems: [
           {
             id: "11",
             nama: "Cara Mengurus Surat Online",
-            jenisKonten: "Tutorial",
+            jenisKonten: "infografis",
             mediaPemerintah: ["Website Resmi", "Video Portal"],
             mediaMassa: ["YouTube"],
             nomorSurat: "011/TUTORIAL/2024",
@@ -457,7 +458,7 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(35),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(30),
-        tema: "Anti Korupsi",
+        tema: "sosial",
         workflowStage: "completed",
         contentItems: [
           {
@@ -507,13 +508,13 @@ export default function RekapPage() {
         tanggalReview: getRandomDate(50),
         isOutputValidated: true,
         tanggalValidasiOutput: getRandomDate(45),
-        tema: "Kemerdekaan",
+        tema: "ekonomi",
         workflowStage: "completed",
         contentItems: [
           {
             id: "14",
             nama: "Live Streaming Upacara Kemerdekaan",
-            jenisKonten: "Event",
+            jenisKonten: "audio",
             mediaPemerintah: ["YouTube Live", "Website Resmi"],
             mediaMassa: ["TV Nasional", "YouTube"],
             nomorSurat: "014/KEMERDEKAAN/2024",
@@ -802,13 +803,13 @@ export default function RekapPage() {
   }
 
   const getUniqueContentTypes = () => {
-    const contentTypes = submissions.flatMap((s) => s.contentItems?.map((c) => c.jenisKonten) || []).filter(Boolean)
-    return [...new Set(contentTypes)].sort()
+    // Fixed content types as requested
+    return ["infografis", "naskah berita", "audio", "video", "fotografis", "bumper"]
   }
 
   const getUniqueThemes = () => {
-    const themes = submissions.map((s) => s.tema).filter((tema): tema is string => Boolean(tema))
-    return [...new Set(themes)].sort()
+    // Fixed themes as requested  
+    return ["sosial", "ekonomi", "lingkungan"]
   }
 
   // Calculate statistics
@@ -1835,20 +1836,24 @@ export default function RekapPage() {
       </div>
 
       {/* Detail Dialog */}
-      {isMobile ? (
-        <MobileRekapDetailDialog
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          submission={selectedSubmission}
-          onToast={showToast}
-        />
-      ) : (
-        <RekapDetailDialog
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          submission={selectedSubmission}
-          onToast={showToast}
-        />
+      {isInitialized && (
+        <>
+          {isMobile ? (
+            <MobileRekapDetailDialog
+              isOpen={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              submission={selectedSubmission}
+              onToast={showToast}
+            />
+          ) : (
+            <RekapDetailDialog
+              isOpen={isDialogOpen}
+              onOpenChange={setIsDialogOpen}
+              submission={selectedSubmission}
+              onToast={showToast}
+            />
+          )}
+        </>
       )}
 
       {/* Toast Notification */}

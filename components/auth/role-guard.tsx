@@ -99,11 +99,6 @@ export function RoleGuard({
                   <Home className="h-4 w-4 mr-2" />
                   Kembali ke Dashboard
                 </Button>
-
-                <Button variant="outline" onClick={() => router.push("/login")} className="w-full">
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login dengan Akun Lain
-                </Button>
               </div>
             </CardContent>
           </Card>

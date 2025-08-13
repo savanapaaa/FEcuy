@@ -340,20 +340,187 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    setIsLoading(true)
-    const storedSubmissions = loadSubmissionsFromStorage()
-    // Add workflow stage to each submission
-    const submissionsWithStage = storedSubmissions.map((sub: Submission) => ({
-      ...sub,
-      workflowStage: getWorkflowStage(sub),
-    }))
-    setSubmissions(submissionsWithStage)
-    setIsLoading(false)
+    const loadSubmissions = async () => {
+      setIsLoading(true)
+      try {
+        console.log("🔄 Loading submissions from server...")
+        
+        // Try to load from API first
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        })
+        
+        if (response.ok) {
+          const apiData = await response.json()
+          console.log("✅ Submissions loaded from server:", apiData)
+          
+          if (apiData.success && apiData.data?.data) {
+            // Transform API data to match our Submission interface
+            const transformedSubmissions = apiData.data.data.map((item: any) => {
+              const submission: Submission = {
+                id: item.id,
+                noComtab: `COM-${item.id.toString().padStart(4, '0')}`, // Generate noComtab from ID
+                pin: "0000", // Default PIN, should be generated properly
+                tema: extractThemeFromDescription(item.description) || "sosial",
+                judul: item.title || "Tidak ada judul",
+                jenisMedia: item.type || "content_creation",
+                mediaPemerintah: [], // Will be filled from metadata if available
+                mediaMassa: [], // Will be filled from metadata if available
+                jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
+                tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
+                petugasPelaksana: item.user?.name || "Tidak diketahui",
+                supervisor: extractSupervisorFromDescription(item.description) || "Tidak diketahui",
+                durasi: extractDurationFromMetadata(item.metadata) || "",
+                jumlahProduksi: item.content_items?.length?.toString() || "0",
+                tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
+                lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+                uploadedBuktiMengetahui: undefined, // Will be filled from attachments if available
+                isConfirmed: item.is_confirmed || false,
+                tanggalKonfirmasi: item.submitted_at || undefined,
+                workflowStage: mapApiWorkflowStage(item.workflow_stage) as "submitted" | "review" | "validation" | "completed",
+                isOutputValidated: item.status === "completed" || item.status === "published",
+                tanggalValidasiOutput: item.validated_at || undefined,
+                contentItems: item.content_items?.map((ci: any, index: number) => ({
+                  id: ci.id?.toString() || `item-${index}`,
+                  nama: ci.title || `Konten ${index + 1}`,
+                  jenisKonten: ci.type || "text",
+                  mediaPemerintah: [],
+                  mediaMassa: [],
+                  nomorSurat: "",
+                  narasiText: ci.content || "",
+                  sourceNarasi: [],
+                  tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
+                  tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
+                  tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
+                  buktiUpload: ci.file_url ? {
+                    name: ci.original_filename || "file",
+                    size: ci.file_size || 0,
+                    type: ci.mime_type || "application/octet-stream",
+                    lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+                    url: ci.file_url
+                  } : undefined,
+                  keterangan: ci.content || "",
+                  status: mapContentItemStatus(item.status) as "pending" | "approved" | "rejected",
+                  alasanPenolakan: item.notes || "",
+                  isTayang: ci.is_published || false,
+                  tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
+                  hasilProdukFile: ci.file_url ? {
+                    name: ci.original_filename || "file",
+                    size: ci.file_size || 0,
+                    type: ci.mime_type || "application/octet-stream", 
+                    lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+                    url: ci.file_url
+                  } : undefined,
+                  hasilProdukLink: ci.file_url || "",
+                })) || []
+              }
+              return submission
+            })
+            
+            setSubmissions(transformedSubmissions)
+            
+            // Update cache for offline use
+            if (typeof window !== "undefined") {
+              localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
+            }
+            
+            showToastMessage("Data berhasil dimuat dari server!", "success")
+            return
+          }
+        }
+        
+        throw new Error("Server not available")
+        
+      } catch (error) {
+        console.error("❌ Failed to load from server:", error)
+        showToastMessage("Server tidak tersedia, menggunakan data cache", "error")
+        
+        // Fallback to cached data
+        try {
+          // Try new cache format first
+          let cachedData = localStorage.getItem("riwayat_cache")
+          if (!cachedData) {
+            // Fallback to old format
+            const storedSubmissions = loadSubmissionsFromStorage()
+            const submissionsWithStage = storedSubmissions.map((sub: Submission) => ({
+              ...sub,
+              workflowStage: getWorkflowStage(sub),
+            }))
+            setSubmissions(submissionsWithStage)
+          } else {
+            const parsedData = JSON.parse(cachedData)
+            setSubmissions(parsedData)
+          }
+        } catch (cacheError) {
+          console.error("❌ Failed to load from cache:", cacheError)
+          showToastMessage("Gagal memuat data, silakan refresh halaman", "error")
+          setSubmissions([])
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSubmissions()
   }, [])
 
   const showToastMessage = (message: string, type: "success" | "error" | "info" = "info") => {
     setToastMessage({ message, type })
     setTimeout(() => setToastMessage(null), 5000)
+  }
+
+  // Helper functions for API data transformation
+  const extractThemeFromDescription = (description: string): string => {
+    if (!description) return "sosial"
+    const desc = description.toLowerCase()
+    if (desc.includes("ekonomi")) return "ekonomi"
+    if (desc.includes("lingkungan")) return "lingkungan"
+    return "sosial"
+  }
+
+  const extractSupervisorFromDescription = (description: string): string => {
+    if (!description) return "Tidak diketahui"
+    // Try to extract supervisor name from description (format: "tema - supervisor")
+    const parts = description.split(" - ")
+    return parts.length > 1 ? parts[1] : "Tidak diketahui"
+  }
+
+  const extractDurationFromMetadata = (metadata: any): string => {
+    if (!metadata) return ""
+    try {
+      const parsed = typeof metadata === 'string' ? JSON.parse(metadata) : metadata
+      return parsed.durasi || parsed.duration || ""
+    } catch {
+      return ""
+    }
+  }
+
+  const mapApiWorkflowStage = (stage: string): string => {
+    const stageMap: Record<string, string> = {
+      'pending': 'submitted',
+      'submitted': 'submitted',
+      'review': 'review',
+      'validation': 'validation',
+      'completed': 'completed',
+      'published': 'completed'
+    }
+    return stageMap[stage?.toLowerCase()] || 'submitted'
+  }
+
+  const mapContentItemStatus = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'pending': 'pending',
+      'submitted': 'pending',
+      'review': 'pending',
+      'approved': 'approved',
+      'rejected': 'rejected',
+      'completed': 'approved',
+      'published': 'approved'
+    }
+    return statusMap[status?.toLowerCase()] || 'pending'
   }
 
   const filteredAndSortedSubmissions = useMemo(() => {
@@ -513,18 +680,117 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
     }
   }
 
-  const refreshData = () => {
+  const refreshData = async () => {
     setIsLoading(true)
-    setTimeout(() => {
-      const storedSubmissions = loadSubmissionsFromStorage()
-      const submissionsWithStage = storedSubmissions.map((sub: Submission) => ({
-        ...sub,
-        workflowStage: getWorkflowStage(sub),
-      }))
-      setSubmissions(submissionsWithStage)
+    try {
+      console.log("🔄 Refreshing submissions from server...")
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      })
+      
+      if (response.ok) {
+        const apiData = await response.json()
+        console.log("✅ Submissions refreshed from server")
+        
+        if (apiData.success && apiData.data?.data) {
+          // Transform API data to match our Submission interface (same logic as useEffect)
+          const transformedSubmissions = apiData.data.data.map((item: any) => {
+            const submission: Submission = {
+              id: item.id,
+              noComtab: `COM-${item.id.toString().padStart(4, '0')}`,
+              pin: "0000",
+              tema: extractThemeFromDescription(item.description) || "sosial",
+              judul: item.title || "Tidak ada judul",
+              jenisMedia: item.type || "content_creation",
+              mediaPemerintah: [],
+              mediaMassa: [],
+              jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
+              tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
+              petugasPelaksana: item.user?.name || "Tidak diketahui",
+              supervisor: extractSupervisorFromDescription(item.description) || "Tidak diketahui",
+              durasi: extractDurationFromMetadata(item.metadata) || "",
+              jumlahProduksi: item.content_items?.length?.toString() || "0",
+              tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
+              lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+              uploadedBuktiMengetahui: undefined,
+              isConfirmed: item.is_confirmed || false,
+              tanggalKonfirmasi: item.submitted_at || undefined,
+              workflowStage: mapApiWorkflowStage(item.workflow_stage) as "submitted" | "review" | "validation" | "completed",
+              isOutputValidated: item.status === "completed" || item.status === "published",
+              tanggalValidasiOutput: item.validated_at || undefined,
+              contentItems: item.content_items?.map((ci: any, index: number) => ({
+                id: ci.id?.toString() || `item-${index}`,
+                nama: ci.title || `Konten ${index + 1}`,
+                jenisKonten: ci.type || "text",
+                mediaPemerintah: [],
+                mediaMassa: [],
+                nomorSurat: "",
+                narasiText: ci.content || "",
+                sourceNarasi: [],
+                tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
+                tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
+                tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
+                buktiUpload: ci.file_url ? {
+                  name: ci.original_filename || "file",
+                  size: ci.file_size || 0,
+                  type: ci.mime_type || "application/octet-stream",
+                  lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+                  url: ci.file_url
+                } : undefined,
+                keterangan: ci.content || "",
+                status: mapContentItemStatus(item.status) as "pending" | "approved" | "rejected",
+                alasanPenolakan: item.notes || "",
+                isTayang: ci.is_published || false,
+                tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
+                hasilProdukFile: ci.file_url ? {
+                  name: ci.original_filename || "file",
+                  size: ci.file_size || 0,
+                  type: ci.mime_type || "application/octet-stream", 
+                  lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+                  url: ci.file_url
+                } : undefined,
+                hasilProdukLink: ci.file_url || "",
+              })) || []
+            }
+            return submission
+          })
+          
+          setSubmissions(transformedSubmissions)
+          
+          // Update cache
+          if (typeof window !== "undefined") {
+            localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
+          }
+          
+          showToastMessage("Data berhasil diperbarui dari server!", "success")
+          return
+        }
+      }
+      
+      throw new Error("Server not available")
+      
+    } catch (error) {
+      console.error("❌ Failed to refresh from server:", error)
+      showToastMessage("Gagal memperbarui data dari server", "error")
+      
+      // Fallback to cache
+      try {
+        const cachedData = localStorage.getItem("riwayat_cache")
+        if (cachedData) {
+          const parsedData = JSON.parse(cachedData)
+          setSubmissions(parsedData)
+          showToastMessage("Menggunakan data cache", "info")
+        }
+      } catch (cacheError) {
+        console.error("❌ Failed to load from cache:", cacheError)
+      }
+    } finally {
       setIsLoading(false)
-      showToastMessage("Data berhasil diperbarui!", "success")
-    }, 1000)
+    }
   }
 
   const formatFileDisplay = (fileData?: FileData | string) => {

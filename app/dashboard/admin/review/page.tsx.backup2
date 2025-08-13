@@ -399,104 +399,47 @@ export default function ReviewPage() {
         console.log("Reviews response:", response)
 
         if (response.success && response.data) {
-          console.log("📊 Raw API response:", response.data)
-          
-          // Check if response.data has a 'data' property (paginated response)
-          const responseData = response.data as any
-          const apiData = responseData.data || responseData
-          console.log("📊 Submissions data:", apiData)
-          
           // Transform API data to match our interface
-          const reviewItems = apiData.map((submission: any) => {
-            console.log("🔄 Processing submission:", submission.id, submission.title || submission.judul)
-            
+          const reviewItems = response.data.map((submission: any) => {
             const reviewItem: Submission = {
               id: submission.id,
-              noComtab: submission.no_comtab || `COM-${submission.id}`,
-              pin: submission.pin || "0000", 
-              tema: submission.theme || submission.tema || "Tidak ada tema",
-              judul: submission.title || submission.judul || "Tidak ada judul",
-              jenisMedia: submission.media_type || submission.jenisMedia || "Digital",
-              mediaPemerintah: submission.media_pemerintah || submission.mediaPemerintah || [],
-              mediaMassa: submission.media_massa || submission.mediaMassa || [],
-              jenisKonten: submission.content_type || submission.jenisKonten || [submission.type || "content_creation"],
-              tanggalOrder: submission.created_at ? new Date(submission.created_at) : undefined,
-              petugasPelaksana: submission.user?.name || submission.petugasPelaksana || "Unknown",
-              supervisor: submission.supervisor || "Unknown",
-              durasi: submission.durasi || "30 hari",
-              jumlahProduksi: submission.jumlahProduksi || "1 konten", 
-              tanggalSubmit: submission.submitted_at ? new Date(submission.submitted_at) : new Date(submission.created_at),
-              lastModified: submission.updated_at ? new Date(submission.updated_at) : new Date(),
+              noComtab: submission.noComtab || `COM-${submission.id}`,
+              pin: submission.pin || "0000",
+              tema: submission.tema || "Tidak ada tema",
+              judul: submission.judul || "Tidak ada judul",
+              jenisMedia: submission.jenisMedia || "",
+              mediaPemerintah: submission.mediaPemerintah || [],
+              mediaMassa: submission.mediaMassa || [],
+              jenisKonten: submission.jenisKonten || [],
+              tanggalOrder: submission.tanggalOrder ? new Date(submission.tanggalOrder) : undefined,
+              petugasPelaksana: submission.petugasPelaksana || "",
+              supervisor: submission.supervisor || "",
+              durasi: submission.durasi || "",
+              jumlahProduksi: submission.jumlahProduksi || "",
+              tanggalSubmit: submission.tanggalSubmit ? new Date(submission.tanggalSubmit) : new Date(),
+              lastModified: submission.lastModified ? new Date(submission.lastModified) : new Date(),
               uploadedBuktiMengetahui: submission.uploadedBuktiMengetahui,
-              isConfirmed: submission.status === "submitted" || submission.workflow_stage === "review",
-              tanggalKonfirmasi: submission.submitted_at || submission.created_at,
-              contentItems: submission.content_items ? submission.content_items.map((item: any) => ({
-                id: item.id?.toString() || Math.random().toString(),
-                nama: submission.title || submission.description || "Konten Review",
-                jenisKonten: item.type || "text",
-                mediaPemerintah: [],
-                mediaMassa: [],
-                nomorSurat: "",
-                narasiText: item.content || submission.description || "",
-                sourceNarasi: ["text"],
-                sourceAudioDubbing: [],
-                sourceAudioBacksound: [],
-                sourcePendukungLainnya: [],
-                tanggalOrderMasuk: submission.created_at ? new Date(submission.created_at) : new Date(),
-                tanggalJadi: undefined,
-                tanggalTayang: undefined,
-                keterangan: submission.notes || "",
-                status: "pending" as "pending" | "approved" | "rejected"
-              })) : [
-                // Create a default content item if none exist
-                {
-                  id: `content-${submission.id}`,
-                  nama: submission.title || submission.description || "Konten Review",
-                  jenisKonten: submission.type || "content_creation",
-                  mediaPemerintah: [],
-                  mediaMassa: [],
-                  nomorSurat: "",
-                  narasiText: submission.description || "",
-                  sourceNarasi: ["text"],
-                  sourceAudioDubbing: [],
-                  sourceAudioBacksound: [],
-                  sourcePendukungLainnya: [],
-                  tanggalOrderMasuk: submission.created_at ? new Date(submission.created_at) : new Date(),
-                  tanggalJadi: undefined,
-                  tanggalTayang: undefined,
-                  keterangan: submission.notes || "",
-                  status: "pending" as "pending" | "approved" | "rejected"
-                }
-              ],
+              isConfirmed: true,
+              tanggalKonfirmasi: submission.tanggalKonfirmasi,
+              contentItems: submission.contentItems || [],
               buktiMengetahui: submission.buktiMengetahui,
-              dokumenPendukung: submission.attachments || [],
-              workflowStage: submission.workflow_stage === "review" ? "review" : "submitted",
-              tanggalReview: submission.reviewed_at,
+              dokumenPendukung: submission.dokumenPendukung || [],
+              workflowStage: getWorkflowStage(submission),
+              tanggalReview: submission.tanggalReview,
             }
             return reviewItem
           })
 
-          console.log("📋 Mapped review items:", reviewItems)
-
-          // Filter submissions that need review - be more lenient
+          // Filter submissions that need review
           const reviewSubmissions = reviewItems.filter((sub: Submission) => {
-            // Must be confirmed/submitted
-            if (!sub.isConfirmed) {
-              console.log(`❌ ${sub.judul}: Not confirmed`)
-              return false
-            }
-            
-            // Must be in review stage
-            if (sub.workflowStage !== "review") {
-              console.log(`❌ ${sub.judul}: Wrong stage (${sub.workflowStage})`)
-              return false
-            }
-            
-            console.log(`✅ ${sub.judul}: Added to review list`)
-            return true
+            if (!sub.isConfirmed) return false
+            if (sub.workflowStage && sub.workflowStage !== "review") return false
+            const contentItems = sub.contentItems || []
+            if (contentItems.length === 0) return true
+            const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
+            return hasPendingItems
           })
 
-          console.log("📋 Final review submissions:", reviewSubmissions)
           setSubmissions(reviewSubmissions)
         } else {
           throw new Error("API not available")
