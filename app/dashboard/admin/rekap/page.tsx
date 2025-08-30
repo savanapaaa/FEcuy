@@ -541,31 +541,83 @@ export default function RekapPage() {
       setIsLoading(true)
       console.log("🔄 Loading completed submissions from server...")
       
-      // Use API client function with completed filter
-      const response = await getSubmissions({ status: 'completed' })
+  // Use API client function with completed filter (include workflow_stage to be explicit)
+  const response = await getSubmissions({ status: 'submitted', workflow_stage: 'completed' })
       
       if (response.success && response.data) {
         console.log("✅ Completed submissions loaded from server")
-        
-        // Transform server data - only show completed and validated submissions
-        const transformedSubmissions = response.data
-          .filter((sub: any) => sub.workflowStage === "completed" && sub.isOutputValidated)
-          .map((sub: any) => ({
+
+        // Support paginated response formats: either array or { data: [] }
+        const raw = response.data as any
+        const items: any[] = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw.data)
+          ? raw.data
+          : raw.data
+          ? [raw.data]
+          : []
+
+        // Normalize each item to frontend Submission shape and backend naming variations
+        const normalized = items.map((sub: any) => {
+          const workflowStage = sub.workflowStage || sub.workflow_stage || sub.status || undefined
+
+          // Gather content items from various possible field names
+          const rawContentItems = sub.content_items || sub.contentItems || []
+
+          // Determine if any content item has been validated
+          const hasValidatedContent = Array.isArray(rawContentItems)
+            ? rawContentItems.some((ci: any) =>
+                ci.validation_status === "validated" || ci.validationStatus === "validated" || !!ci.validated_at || !!ci.validatedAt,
+              )
+            : false
+
+          let isOutputValidated = false
+          if (sub.isOutputValidated !== undefined) {
+            isOutputValidated = !!sub.isOutputValidated
+          } else if (sub.is_output_validated !== undefined) {
+            isOutputValidated = !!sub.is_output_validated
+          } else if (sub.validated_at || sub.validatedAt) {
+            isOutputValidated = true
+          } else if (hasValidatedContent) {
+            // If individual content items are validated, consider submission validated
+            isOutputValidated = true
+          }
+
+          return {
             ...sub,
-            id: sub.id?.toString() || sub.id,
-            tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : new Date(),
-            tanggalOrder: sub.tanggalOrder ? new Date(sub.tanggalOrder) : undefined,
-            lastModified: sub.lastModified ? new Date(sub.lastModified) : new Date(),
-          }))
-        
+            id: sub.id !== undefined ? (typeof sub.id === "string" ? parseInt(sub.id, 10) || sub.id : sub.id) : sub.id,
+            noComtab: sub.noComtab || sub.comtab_number || sub.comtab || String(sub.id).padStart(4, "0"),
+            tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : sub.created_at ? new Date(sub.created_at) : undefined,
+            tanggalOrder: sub.tanggalOrder ? new Date(sub.tanggalOrder) : sub.order_date ? new Date(sub.order_date) : undefined,
+            lastModified: sub.lastModified ? new Date(sub.lastModified) : sub.updated_at ? new Date(sub.updated_at) : undefined,
+            workflowStage,
+            isOutputValidated,
+            // Map content_items to contentItems for UI usage
+            contentItems: Array.isArray(rawContentItems)
+              ? rawContentItems.map((ci: any) => ({
+                  id: ci.id?.toString() || String(ci.id || ""),
+                  nama: ci.title || ci.nama || ci.name || `Konten ${ci.id}`,
+                  jenisKonten: ci.type || ci.jenisKonten || ci.mime_type || "content",
+                  tanggalTayang: ci.publish_date || ci.publishDate || ci.tanggalTayang || undefined,
+                  status: ci.review_status || ci.validation_status || ci.status || "pending",
+                  isTayang: ci.is_published !== undefined ? !!ci.is_published : !!ci.isPublished,
+                  hasilProdukLink: ci.file_url || ci.published_content || ci.hasilProdukLink || null,
+                }))
+              : [],
+          }
+        })
+
+        // Keep only completed submissions as requested
+        const transformedSubmissions = normalized.filter((s: any) => s.workflowStage === "completed" && s.isOutputValidated)
+
         setSubmissions(transformedSubmissions)
         setFilteredSubmissions(transformedSubmissions)
-        
+
         // Update cache
         if (typeof window !== "undefined") {
           localStorage.setItem("rekap_cache", JSON.stringify(transformedSubmissions))
         }
-        
+
         return
       }
       
