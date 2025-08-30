@@ -48,6 +48,7 @@ import {
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import PreviewModal from "./preview-modal"
+import { submitValidation, login } from "@/lib/api-client"
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage, getFileIcon, downloadFile } from "@/lib/utils"
 import { MobileValidasiOutputDialog } from "./mobile-validasi-output-dialog"
 
@@ -924,60 +925,56 @@ export function ValidasiOutputDialog({
   const handleConfirmedValidationSubmit = async () => {
     setIsSubmitting(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    const submissions = loadSubmissionsFromStorage()
-    const updatedSubmissions = submissions.map((sub: any) => {
-      if (sub.id === submission.id) {
-        const updatedContentItems = sub.contentItems?.map((contentItem: any) => {
-          const decision = validationDecisions[contentItem.id]
-          if (decision !== undefined && decision !== null) {
-            return {
-              ...contentItem,
-              isTayang: decision,
-              tanggalValidasiTayang: new Date().toLocaleDateString("id-ID"),
-              validatorTayang: "Admin",
-              keteranganValidasi: validationNotes[contentItem.id] || "",
-              alasanTidakTayang: decision === false ? rejectionReasons[contentItem.id] : undefined,
-              // Add new validation fields
-              tanggalTayangValidasi: decision === true ? tayangDates[contentItem.id] : undefined,
-              hasilProdukValidasiFile: decision === true ? hasilProdukFiles[contentItem.id] : undefined,
-              hasilProdukValidasiLink: decision === true ? hasilProdukLinks[contentItem.id] : undefined,
-            }
-          }
-          return contentItem
-        })
-
-        const updatedSubmission = {
-          ...sub,
-          contentItems: updatedContentItems,
-          lastModified: new Date(),
-          isOutputValidated: true, // Mark as validated
-          tanggalValidasiOutput: new Date().toISOString(), // Add validation timestamp
+    try {
+      // Debug: Check localStorage tokens
+      console.log('=== DEBUG: localStorage tokens ===')
+      const possibleKeys = ['token', 'auth_token', 'access_token', 'authToken', 'user']
+      possibleKeys.forEach(key => {
+        const value = localStorage.getItem(key)
+        console.log(`${key}:`, value ? `${value.substring(0, 30)}...` : 'Not found')
+      })
+      
+      // Check if we have a valid token, if not try to login
+      const hasToken = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      if (!hasToken) {
+        console.log('🔐 No token found, attempting auto-login as validator...')
+        try {
+          const loginResult = await login({ username: 'validator', password: 'validator' })
+          console.log('🔐 Auto-login result:', loginResult)
+        } catch (loginError) {
+          console.error('🔐 Auto-login failed:', loginError)
         }
-        updatedSubmission.workflowStage = getWorkflowStage(updatedSubmission)
-
-        return updatedSubmission
       }
-      return sub
-    })
+      console.log('=== End debug ===')
 
-    saveSubmissionsToStorage(updatedSubmissions)
-    onUpdate(updatedSubmissions)
+      // Submit validation using API with correct status mapping
+      const submissionId = submission.id.toString()
+      const validationStatus = Object.values(validationDecisions).some(decision => decision === true) ? 'setuju' : 'ditolak'
+      const notes = Object.values(validationNotes).join('; ')
 
-    const tayangCount = Object.values(validationDecisions).filter((d) => d === true).length
-    const tidakTayangCount = Object.values(validationDecisions).filter((d) => d === false).length
+      await submitValidation(submissionId, {
+        validation_status: validationStatus,
+        notes: notes || null
+      })
 
-    onToast(`Validasi selesai! ${tayangCount} konten tayang, ${tidakTayangCount} konten tidak tayang`, "success")
-    setIsSubmitting(false)
-    setShowValidationSummary(false)
+      const tayangCount = Object.values(validationDecisions).filter((d) => d === true).length
+      const tidakTayangCount = Object.values(validationDecisions).filter((d) => d === false).length
 
-    // Show confirmation step if there are tayang items
-    if (tayangCount > 0) {
-      setShowConfirmation(true)
-    } else {
-      onOpenChange(false)
+      onToast(`Validasi selesai! ${tayangCount} konten tayang, ${tidakTayangCount} konten tidak tayang`, "success")
+      setIsSubmitting(false)
+      setShowValidationSummary(false)
+
+      // Show confirmation step if there are tayang items
+      if (tayangCount > 0) {
+        setShowConfirmation(true)
+      } else {
+        onOpenChange(false)
+      }
+      
+    } catch (error) {
+      console.error('Error submitting validation:', error)
+      setIsSubmitting(false)
+      onToast('Error submitting validation', 'error')
     }
   }
 

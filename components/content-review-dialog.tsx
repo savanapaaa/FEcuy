@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import PreviewModal from "./preview-modal"
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage } from "@/lib/utils"
+import { submitReview, getCurrentUser } from "@/lib/api-client"
 
 // Helper function to determine workflow stage
 const getWorkflowStage = (submission: any) => {
@@ -429,7 +430,10 @@ const ReviewSummaryConfirmation = ({
         </Button>
 
         <Button
-          onClick={onConfirm}
+          onClick={() => {
+            console.log("🎯 ReviewSummaryConfirmation button clicked - calling onConfirm")
+            onConfirm()
+          }}
           disabled={isSubmitting}
           className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
         >
@@ -698,6 +702,15 @@ export default function ContentReviewDialog({
 
   const canSubmit = allItemsReviewed && rejectedItemsHaveReasons
 
+  // Debug logging for canSubmit condition
+  console.log("🔍 Debug canSubmit condition:", {
+    allItemsReviewed,
+    rejectedItemsHaveReasons,
+    canSubmit,
+    reviewDecisions,
+    rejectionReasons
+  })
+
   const getReviewedCount = () => {
     return Object.values(reviewDecisions).filter((d) => d !== null).length
   }
@@ -789,7 +802,10 @@ export default function ContentReviewDialog({
 
   // Handle review submission - now shows summary first
   const handleReviewSubmit = async () => {
+    console.log("🔄 handleReviewSubmit called - Button clicked!")
+    console.log("🔍 canSubmit condition check:", canSubmit)
     if (!canSubmit) {
+      console.log("❌ Cannot submit - showing warning dialog")
       await Swal.fire({
         title: "Review Belum Lengkap",
         text: "Harap review semua konten dan berikan alasan untuk konten yang ditolak",
@@ -807,6 +823,9 @@ export default function ContentReviewDialog({
     const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
     const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
     const totalItems = submission.contentItems?.length || 0
+
+    console.log("📊 Review statistics:", { approvedCount, rejectedCount, totalItems })
+    console.log("🔄 Showing SweetAlert confirmation dialog...")
 
     // Show confirmation dialog with review summary
     const result = await Swal.fire({
@@ -849,13 +868,17 @@ export default function ContentReviewDialog({
     })
 
     if (result.isConfirmed) {
-      // Show review summary confirmation
-      setShowReviewSummary(true)
+      // User confirmed - call API directly here!
+      console.log("✅ Confirmation result: isConfirmed = true, calling API directly!")
+      await handleConfirmedReviewSubmit()
+    } else {
+      console.log("❌ Confirmation result: User cancelled")
     }
   }
 
   // Handle confirmed review submission
   const handleConfirmedReviewSubmit = async () => {
+    console.log("masuk di handleConfirmedReviewSubmit")
     // Show loading
     Swal.fire({
       title: "Memproses Review",
@@ -875,9 +898,34 @@ export default function ContentReviewDialog({
     setIsSubmitting(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Get current user ID from API
+      console.log("🔍 Fetching current user ID from /api/auth/me...")
+      const userResponse = await getCurrentUser()
+      let reviewerId = "fallback-user-id" // Fallback ID
+      
+      if (userResponse.success && userResponse.data?.id) {
+        reviewerId = userResponse.data.id
+        console.log("✅ Got user ID from API:", reviewerId)
+      } else {
+        console.warn("⚠️ Failed to get user ID from API, using fallback")
+      }
 
+      // Submit review to backend API
+      const response = await submitReview(submission.id.toString(), {
+        status: Object.values(reviewDecisions).some(d => d === "approved") ? "approved" : "rejected",
+        notes: `Review completed with ${Object.values(reviewDecisions).filter(d => d === "approved").length} approved and ${Object.values(reviewDecisions).filter(d => d === "rejected").length} rejected items`,
+        reviewerId: reviewerId,
+      })
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to submit review to server")
+      }
+
+      console.log("✅ Review submitted successfully:", response.message || "Success")
+
+      // Check if this was a fallback to local storage due to backend issues
+      const isLocalFallback = response.message?.includes("saved locally")
+      
       const submissions = loadSubmissionsFromStorage()
       const updatedSubmissions = submissions.map((sub: any) => {
         if (sub.id === submission.id) {
@@ -915,7 +963,7 @@ export default function ContentReviewDialog({
       const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
       const totalItems = submission.contentItems?.length || 0
 
-      // Show success message with consistent styling
+      // Show success message with appropriate warning if using local fallback
       await Swal.fire({
         title: "Review Berhasil!",
         html: `
@@ -942,6 +990,10 @@ export default function ContentReviewDialog({
                 </div>
               </div>
             </div>
+            ${isLocalFallback ? 
+              '<div class="bg-gradient-to-r from-yellow-50 to-amber-50 p-3 rounded-lg border border-yellow-200 mt-3"><p class="text-yellow-700 text-sm font-medium">⚠️ Data disimpan secara lokal karena ada masalah dengan database server</p></div>' : 
+              ''
+            }
             ${approvedCount > 0 ? 
               '<div class="bg-gradient-to-r from-yellow-50 to-amber-50 p-3 rounded-lg border border-yellow-200 mt-3"><p class="text-yellow-700 text-sm font-medium">Konten yang disetujui akan dilanjutkan ke tahap validasi</p></div>' : 
               '<div class="bg-gradient-to-r from-gray-50 to-slate-50 p-3 rounded-lg border border-gray-200 mt-3"><p class="text-gray-700 text-sm font-medium">Semua konten ditolak, proses review selesai</p></div>'
@@ -950,7 +1002,7 @@ export default function ContentReviewDialog({
         `,
         icon: "success",
         confirmButtonText: approvedCount > 0 ? "Lanjut ke Validasi" : "Tutup",
-        timer: 5000,
+        timer: 7000,
         timerProgressBar: true,
         customClass: {
           popup: "rounded-2xl",
@@ -960,7 +1012,7 @@ export default function ContentReviewDialog({
       })
 
       setIsSubmitting(false)
-      setShowReviewSummary(false)
+      // setShowReviewSummary(false) // No longer needed - we don't use this flow
 
       // Show confirmation step if there are approved items
       if (approvedCount > 0) {
@@ -973,7 +1025,15 @@ export default function ContentReviewDialog({
       
       await Swal.fire({
         title: "Terjadi Kesalahan",
-        text: "Gagal menyimpan review. Silakan coba lagi.",
+        html: `
+          <div class="text-center space-y-3">
+            <p class="text-gray-700">Gagal menyimpan review ke server.</p>
+            <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+              <p class="text-red-700 text-sm font-medium">Error: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+            </div>
+            <p class="text-gray-600 text-sm">Silakan coba lagi atau hubungi administrator jika masalah berlanjut.</p>
+          </div>
+        `,
         icon: "error",
         confirmButtonText: "OK",
         customClass: {
@@ -1013,27 +1073,28 @@ export default function ContentReviewDialog({
     onOpenChange(false)
   }
 
-  // Show review summary confirmation
-  if (showReviewSummary) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden mx-4 md:mx-auto">
-          <ScrollArea className="max-h-[75vh]">
-            <div className="p-4">
-              <ReviewSummaryConfirmation
-                contentItems={contentItems}
-                reviewDecisions={reviewDecisions}
-                rejectionReasons={rejectionReasons}
-                onConfirm={handleConfirmedReviewSubmit}
-                onBack={() => setShowReviewSummary(false)}
-                isSubmitting={isSubmitting}
-              />
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-    )
-  }
+  // Show review summary confirmation - DISABLED: Now using direct API call
+  // if (showReviewSummary) {
+  //   console.log("📋 Rendering ReviewSummaryConfirmation - showReviewSummary is true")
+  //   return (
+  //     <Dialog open={isOpen} onOpenChange={onOpenChange}>
+  //       <DialogContent className="max-w-lg max-h-[80vh] overflow-hidden mx-4 md:mx-auto">
+  //         <ScrollArea className="max-h-[75vh]">
+  //           <div className="p-4">
+  //             <ReviewSummaryConfirmation
+  //               contentItems={contentItems}
+  //               reviewDecisions={reviewDecisions}
+  //               rejectionReasons={rejectionReasons}
+  //               onConfirm={handleConfirmedReviewSubmit}
+  //               onBack={() => setShowReviewSummary(false)}
+  //               isSubmitting={isSubmitting}
+  //             />
+  //           </div>
+  //         </ScrollArea>
+  //       </DialogContent>
+  //     </Dialog>
+  //   )
+  // }
 
   // Show enhanced confirmation step
   if (showConfirmation) {

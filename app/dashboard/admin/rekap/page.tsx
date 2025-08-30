@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useMobile } from "@/hooks/use-mobile"
 import { Separator } from "@/components/ui/separator"
+import { getSubmissions } from "@/lib/api-client"
 
 interface FileData {
   name: string
@@ -540,42 +541,35 @@ export default function RekapPage() {
       setIsLoading(true)
       console.log("🔄 Loading completed submissions from server...")
       
-      // Try to load from server first
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions?status=completed`)
+      // Use API client function with completed filter
+      const response = await getSubmissions({ status: 'completed' })
       
-      if (response.ok) {
-        const data = await response.json()
+      if (response.success && response.data) {
         console.log("✅ Completed submissions loaded from server")
         
-        if (data.success && data.data) {
-          // Transform server data
-          const transformedSubmissions = data.data
-            .filter((sub: any) => sub.workflowStage === "completed" && sub.isOutputValidated)
-            .map((sub: any) => ({
-              ...sub,
-              id: sub.id?.toString() || sub.id,
-              tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : new Date(),
-              tanggalOrder: sub.tanggalOrder ? new Date(sub.tanggalOrder) : undefined,
-              lastModified: sub.lastModified ? new Date(sub.lastModified) : new Date(),
-            }))
-          
-          // Add dummy data for demonstration
-          const dummyData = generateDummyData()
-          const allSubmissions = [...transformedSubmissions, ...dummyData]
-          
-          setSubmissions(allSubmissions)
-          setFilteredSubmissions(allSubmissions)
-          
-          // Update cache
-          if (typeof window !== "undefined") {
-            localStorage.setItem("rekap_cache", JSON.stringify(allSubmissions))
-          }
-          
-          return
+        // Transform server data - only show completed and validated submissions
+        const transformedSubmissions = response.data
+          .filter((sub: any) => sub.workflowStage === "completed" && sub.isOutputValidated)
+          .map((sub: any) => ({
+            ...sub,
+            id: sub.id?.toString() || sub.id,
+            tanggalSubmit: sub.tanggalSubmit ? new Date(sub.tanggalSubmit) : new Date(),
+            tanggalOrder: sub.tanggalOrder ? new Date(sub.tanggalOrder) : undefined,
+            lastModified: sub.lastModified ? new Date(sub.lastModified) : new Date(),
+          }))
+        
+        setSubmissions(transformedSubmissions)
+        setFilteredSubmissions(transformedSubmissions)
+        
+        // Update cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem("rekap_cache", JSON.stringify(transformedSubmissions))
         }
+        
+        return
       }
       
-      throw new Error("Server not available")
+      throw new Error("Server response not successful")
       
     } catch (error) {
       console.error("❌ Failed to load from server, using cache:", error)

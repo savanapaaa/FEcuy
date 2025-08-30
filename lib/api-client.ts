@@ -1,7 +1,28 @@
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage } from "./utils"
 
-// API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://be-savana.budiutamamandiri.com/api"
+// API Configuration from Environment Variables
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
+const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || "30000")
+const API_RETRY_ATTEMPTS = parseInt(process.env.NEXT_PUBLIC_API_RETRY_ATTEMPTS || "3")
+
+// Auth Configuration
+const AUTH_TOKEN_KEY = process.env.NEXT_PUBLIC_AUTH_TOKEN_KEY || "auth_token"
+const USER_STORAGE_KEY = process.env.NEXT_PUBLIC_USER_STORAGE_KEY || "user"
+
+// Debug Configuration
+const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API === "true"
+const DEBUG_AUTH = process.env.NEXT_PUBLIC_DEBUG_AUTH === "true"
+
+// API Endpoints
+const ENDPOINTS = {
+  AUTH_LOGIN: process.env.NEXT_PUBLIC_AUTH_LOGIN_ENDPOINT || "/auth/login",
+  AUTH_LOGOUT: process.env.NEXT_PUBLIC_AUTH_LOGOUT_ENDPOINT || "/auth/logout",
+  AUTH_ME: process.env.NEXT_PUBLIC_AUTH_ME_ENDPOINT || "/auth/me",
+  SUBMISSIONS: process.env.NEXT_PUBLIC_SUBMISSIONS_ENDPOINT || "/submissions",
+  REVIEWS: process.env.NEXT_PUBLIC_REVIEWS_ENDPOINT || "/reviews",
+  VALIDATIONS: process.env.NEXT_PUBLIC_VALIDATIONS_ENDPOINT || "/validations",
+  USERS: process.env.NEXT_PUBLIC_USERS_ENDPOINT || "/users",
+}
 
 // Types
 interface ApiResponse<T = any> {
@@ -46,24 +67,49 @@ interface ReviewData {
   status: "approved" | "rejected"
   notes: string
   reviewerId: string
+  contentItems?: Array<{
+    id: string
+    status: "approved" | "rejected" | "pending"
+    notes?: string
+    processedAt?: string
+  }>
 }
 
 interface ValidationData {
-  status: "validated" | "published" | "rejected"
-  notes: string
-  validatorId: string
-  publishDate?: string
-  publishedContent?: any[]
+  validation_status?: "setuju" | "ditolak"
+  status?: "validated" | "published" | "rejected"
+  notes: string | null
+  validatorId?: string
+  publishDate?: string // Format: YYYY-MM-DD (date format as per API schema)
+  publishedContent?: {
+    platform?: string
+    scheduled?: boolean
+    validatedAt?: string
+    [key: string]: any
+  }
 }
 
 // API Client Class
 class ApiClient {
   private baseURL: string
   private token: string | null = null
+  private timeout: number
+  private retryAttempts: number
 
   constructor(baseURL: string) {
     this.baseURL = baseURL
-    this.token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+    this.timeout = API_TIMEOUT
+    this.retryAttempts = API_RETRY_ATTEMPTS
+    this.token = typeof window !== "undefined" ? localStorage.getItem(AUTH_TOKEN_KEY) : null
+    
+    if (DEBUG_API) {
+      console.log("🔧 ApiClient initialized:", {
+        baseURL: this.baseURL,
+        timeout: this.timeout,
+        retryAttempts: this.retryAttempts,
+        hasToken: !!this.token
+      })
+    }
   }
 
   private async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -79,11 +125,22 @@ class ApiClient {
       },
       credentials: 'omit', // Don't send credentials for cross-origin requests
       mode: 'cors',
+      signal: AbortSignal.timeout(this.timeout), // Add timeout
       ...options,
     }
 
     try {
+      // Always log for validation debugging
       console.log(`🚀 API Request: ${config.method || 'GET'} ${url}`)
+      console.log("📤 Request headers:", config.headers)
+      console.log("🔑 Token available:", this.token ? 'Yes' : 'No')
+      if (this.token) {
+        console.log("🔑 Authorization header will be:", `Bearer ${this.token}`)
+      }
+      
+      if (DEBUG_API) {
+        console.log("📤 Full Request config:", config)
+      }
       
       const response = await fetch(url, config)
       
@@ -110,7 +167,10 @@ class ApiClient {
       }
 
       const data = await response.json()
-      console.log(`✅ API Success: ${endpoint}`, data)
+      
+      if (DEBUG_API) {
+        console.log(`✅ API Success: ${endpoint}`, data)
+      }
       
       // Handle different backend response formats
       if (data.success !== undefined) {
@@ -157,7 +217,7 @@ class ApiClient {
   // Auth methods
   async login(credentials: LoginCredentials): Promise<ApiResponse<{ user: User; token: string }>> {
     try {
-      const response = await this.request<BackendLoginResponse>("/auth/login", {
+      const response = await this.request<BackendLoginResponse>(ENDPOINTS.AUTH_LOGIN, {
         method: "POST",
         body: JSON.stringify(credentials),
       })
@@ -176,8 +236,12 @@ class ApiClient {
         }
         
         if (typeof window !== "undefined") {
-          localStorage.setItem("auth_token", response.data.token)
-          localStorage.setItem("user", JSON.stringify(frontendUser))
+          localStorage.setItem(AUTH_TOKEN_KEY, response.data.token)
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(frontendUser))
+        }
+
+        if (DEBUG_AUTH) {
+          console.log("🔐 Login successful:", { user: frontendUser, hasToken: !!response.data.token })
         }
 
         return {
@@ -189,7 +253,9 @@ class ApiClient {
 
       return response as any
     } catch (error) {
-      console.warn("API login failed, using mock authentication")
+      if (DEBUG_AUTH) {
+        console.warn("🔒 API login failed, using mock authentication:", error)
+      }
       
       // Mock user roles based on username for development
       let mockRole: User["role"] = "user"
@@ -228,8 +294,8 @@ class ApiClient {
       this.token = mockToken
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("auth_token", mockToken)
-        localStorage.setItem("user", JSON.stringify(mockUser))
+        localStorage.setItem(AUTH_TOKEN_KEY, mockToken)
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(mockUser))
       }
 
       return {
@@ -259,22 +325,28 @@ class ApiClient {
 
   async logout(): Promise<ApiResponse> {
     try {
-      const response = await this.request("/auth/logout", { method: "POST" })
+      const response = await this.request(ENDPOINTS.AUTH_LOGOUT, { method: "POST" })
 
       this.token = null
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("user")
+        localStorage.removeItem(AUTH_TOKEN_KEY)
+        localStorage.removeItem(USER_STORAGE_KEY)
+      }
+
+      if (DEBUG_AUTH) {
+        console.log("🔓 Logout successful")
       }
 
       return response
     } catch (error) {
-      console.warn("API logout failed, clearing local storage anyway")
+      if (DEBUG_AUTH) {
+        console.warn("🔒 API logout failed, clearing local storage anyway:", error)
+      }
       // Always succeed for logout
       this.token = null
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth_token")
-        localStorage.removeItem("user")
+        localStorage.removeItem(AUTH_TOKEN_KEY)
+        localStorage.removeItem(USER_STORAGE_KEY)
       }
 
       return { success: true }
@@ -283,7 +355,7 @@ class ApiClient {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     try {
-      const response = await this.request<BackendUser>("/auth/me")
+      const response = await this.request<BackendUser>(ENDPOINTS.AUTH_ME)
       
       if (response.success && response.data) {
         // Convert backend user format to frontend user format
@@ -295,6 +367,10 @@ class ApiClient {
           role: this.mapBackendRole(backendUser.role),
           name: backendUser.name
         }
+
+        if (DEBUG_AUTH) {
+          console.log("👤 Current user fetched:", frontendUser)
+        }
         
         return {
           success: true,
@@ -304,10 +380,12 @@ class ApiClient {
       
       return response as any
     } catch (error) {
-      console.warn("API getCurrentUser failed, using stored user")
+      if (DEBUG_AUTH) {
+        console.warn("👤 API getCurrentUser failed, using stored user:", error)
+      }
       // Fallback to stored user
       if (typeof window !== "undefined") {
-        const storedUser = localStorage.getItem("user")
+        const storedUser = localStorage.getItem(USER_STORAGE_KEY)
         if (storedUser) {
           return {
             success: true,
@@ -336,7 +414,7 @@ class ApiClient {
     
     try {
       console.log("🔄 Fetching submissions from backend server...")
-      const response = await this.request<any[]>(`/submissions${queryParams}`)
+      const response = await this.request<any[]>(`${ENDPOINTS.SUBMISSIONS}${queryParams}`)
       
       // Cache successful response to localStorage for offline access
       if (response.success && response.data) {
@@ -363,7 +441,7 @@ class ApiClient {
   async getSubmission(id: string): Promise<ApiResponse<any>> {
     try {
       console.log(`🔄 Fetching submission ${id} from backend server...`)
-      const response = await this.request<any>(`/submissions/${id}`)
+      const response = await this.request<any>(`${ENDPOINTS.SUBMISSIONS}/${id}`)
       
       if (response.success) {
         console.log(`✅ Submission ${id} fetched from server`)
@@ -393,7 +471,7 @@ class ApiClient {
   async createSubmission(data: any): Promise<ApiResponse<any>> {
     try {
       console.log("🔄 Creating submission on backend server...")
-      const response = await this.request<any>("/submissions", {
+      const response = await this.request<any>(ENDPOINTS.SUBMISSIONS, {
         method: "POST",
         body: JSON.stringify(data),
       })
@@ -430,7 +508,7 @@ class ApiClient {
   async updateSubmission(id: string, data: any): Promise<ApiResponse<any>> {
     try {
       console.log(`🔄 Updating submission ${id} on backend server...`)
-      const response = await this.request<any>(`/submissions/${id}`, {
+      const response = await this.request<any>(`${ENDPOINTS.SUBMISSIONS}/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       })
@@ -467,7 +545,7 @@ class ApiClient {
   async deleteSubmission(id: string): Promise<ApiResponse> {
     try {
       console.log(`🔄 Deleting submission ${id} from backend server...`)
-      const response = await this.request(`/submissions/${id}`, { method: "DELETE" })
+      const response = await this.request(`${ENDPOINTS.SUBMISSIONS}/${id}`, { method: "DELETE" })
       
       if (response.success) {
         console.log(`✅ Submission ${id} deleted successfully from server`)
@@ -493,7 +571,7 @@ class ApiClient {
     
     try {
       console.log("🔄 Fetching reviews from backend server...")
-      const response = await this.request<any[]>(`/reviews${queryParams}`)
+      const response = await this.request<any[]>(`${ENDPOINTS.REVIEWS}${queryParams}`)
       
       if (response.success) {
         console.log("✅ Reviews fetched from server")
@@ -521,7 +599,7 @@ class ApiClient {
 
   async getReview(id: string): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/reviews/${id}`)
+      return await this.request<any>(`${ENDPOINTS.REVIEWS}/${id}`)
     } catch (error) {
       console.warn(`API getReview failed for ID ${id}, using local storage`)
       // Fallback to local storage
@@ -541,12 +619,57 @@ class ApiClient {
 
   async submitReview(id: string, reviewData: ReviewData): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/reviews/${id}`, {
-        method: "POST",
-        body: JSON.stringify(reviewData),
+      // Try approach 1: Use submissions endpoint to update review status directly
+      console.log("🔄 Attempting to update submission directly...")
+      
+      const submissionUpdateData = {
+        review_status: reviewData.status,
+        review_notes: reviewData.notes,
+        reviewed_by: reviewData.reviewerId,
+        workflow_stage: reviewData.status === 'approved' ? 'validation' : 'completed'
+      }
+
+      console.log("🔄 Sending submission update data:", submissionUpdateData)
+      
+      const response = await this.request<any>(`${ENDPOINTS.SUBMISSIONS}/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(submissionUpdateData),
       })
+      
+      if (response.success) {
+        console.log("✅ Successfully updated submission directly")
+        return response
+      }
+      
+      console.warn("⚠️ Submission update failed, trying review endpoint...")
+      
+      // Fallback to review endpoint if submission update fails
+      const cleanReviewData = {
+        status: reviewData.status,
+        notes: reviewData.notes,
+        reviewerId: reviewData.reviewerId
+      }
+
+      const reviewResponse = await this.request<any>(`${ENDPOINTS.REVIEWS}/${id}`, {
+        method: "POST",
+        body: JSON.stringify(cleanReviewData),
+      })
+      
+      return reviewResponse
+      
     } catch (error) {
-      console.warn(`API submitReview failed for ID ${id}, using local storage`)
+      // Check if this is the specific database schema error
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const isSchemaError = errorMessage.includes("reviewed_at") && errorMessage.includes("Column not found")
+      
+      if (isSchemaError) {
+        console.warn(`⚠️ Backend database schema issue detected: missing 'reviewed_at' column`)
+        console.warn(`💡 This should be fixed on the backend by adding 'reviewed_at' column to 'reviews' table`)
+      }
+      
+      console.warn(`API submitReview failed for ID ${id}, falling back to local storage`)
+      console.error("Error details:", errorMessage)
+      
       // Fallback to local storage update
       const submissions = loadSubmissionsFromStorage()
       const index = submissions.findIndex((s: any) => s.id.toString() === id)
@@ -566,6 +689,9 @@ class ApiClient {
         return {
           success: true,
           data: submissions[index],
+          message: isSchemaError 
+            ? "Review saved locally due to backend database schema issue" 
+            : "Review saved locally due to API error"
         }
       }
 
@@ -575,7 +701,7 @@ class ApiClient {
 
   async assignReview(id: string, assigneeId: string): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/reviews/${id}/assign`, {
+      return await this.request<any>(`${ENDPOINTS.REVIEWS}/${id}/assign`, {
         method: "POST",
         body: JSON.stringify({ assigneeId }),
       })
@@ -608,7 +734,29 @@ class ApiClient {
   async getValidations(filters?: any): Promise<ApiResponse<any[]>> {
     try {
       const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
-      return await this.request<any[]>(`/validations${queryParams}`)
+      const response = await this.request<any>(`${ENDPOINTS.VALIDATIONS}${queryParams}`)
+      
+      if (DEBUG_API) {
+        console.log("🔍 Raw validation response:", response)
+      }
+      
+      // Handle paginated response structure
+      if (response.success && response.data) {
+        // If data has pagination structure, extract the data array
+        if (response.data.data && Array.isArray(response.data.data)) {
+          return {
+            success: true,
+            data: response.data // Return the full pagination object
+          }
+        } else if (Array.isArray(response.data)) {
+          return {
+            success: true,
+            data: response.data
+          }
+        }
+      }
+      
+      return response
     } catch (error) {
       console.warn("API getValidations failed, using local submissions data")
       // Fallback to submissions that need validation
@@ -631,7 +779,7 @@ class ApiClient {
 
   async getValidation(id: string): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/validations/${id}`)
+      return await this.request<any>(`${ENDPOINTS.VALIDATIONS}/${id}`)
     } catch (error) {
       console.warn(`API getValidation failed for ID ${id}, using local storage`)
       // Fallback to local storage
@@ -651,12 +799,36 @@ class ApiClient {
 
   async submitValidation(id: string, validationData: ValidationData): Promise<ApiResponse<any>> {
     try {
-      return await this.request<any>(`/validations/${id}`, {
-        method: "POST",
-        body: JSON.stringify(validationData),
+      console.log(`🔄 Submitting validation for ID ${id} to API:`, validationData)
+      
+      // Ensure we have authentication token from localStorage
+      if (typeof window !== "undefined") {
+        const token = localStorage.getItem('token') || localStorage.getItem(AUTH_TOKEN_KEY)
+        this.token = token
+        console.log(`� Token from localStorage:`, token ? 'Present' : 'Missing')
+        console.log(`🔑 Token value:`, token)
+      }
+      
+      if (!this.token) {
+        throw new Error('No authentication token found')
+      }
+      
+      // Use POST method and correct endpoint structure based on API documentation
+      const response = await this.request<any>(`${ENDPOINTS.VALIDATIONS}/${id}`, {
+        method: "POST", // Based on swagger documentation
+        body: JSON.stringify({
+          validation_status: validationData.status || validationData.validation_status,
+          notes: validationData.notes
+        }),
       })
+      
+      console.log(`✅ Validation submitted successfully for ID ${id}:`, response)
+      return response
+      
     } catch (error) {
-      console.warn(`API submitValidation failed for ID ${id}, using local storage`)
+      console.error(`❌ API submitValidation failed for ID ${id}:`, error)
+      console.warn(`Falling back to local storage for ID ${id}`)
+      
       // Fallback to local storage update
       const submissions = loadSubmissionsFromStorage()
       const index = submissions.findIndex((s: any) => s.id.toString() === id)
@@ -678,6 +850,7 @@ class ApiClient {
         return {
           success: true,
           data: submissions[index],
+          message: "Validation saved locally (API authentication failed)"
         }
       }
 
@@ -689,7 +862,7 @@ class ApiClient {
   async getUsers(filters?: any): Promise<ApiResponse<User[]>> {
     try {
       const queryParams = filters ? `?${new URLSearchParams(filters).toString()}` : ""
-      return await this.request<User[]>(`/users${queryParams}`)
+      return await this.request<User[]>(`${ENDPOINTS.USERS}${queryParams}`)
     } catch (error) {
       console.warn("API getUsers failed, using mock users")
       // Mock users for development
@@ -726,7 +899,7 @@ class ApiClient {
 
   async createUser(userData: Partial<User>): Promise<ApiResponse<User>> {
     try {
-      return await this.request<User>("/users", {
+      return await this.request<User>(ENDPOINTS.USERS, {
         method: "POST",
         body: JSON.stringify(userData),
       })
@@ -750,7 +923,7 @@ class ApiClient {
 
   async updateUser(id: string, userData: Partial<User>): Promise<ApiResponse<User>> {
     try {
-      return await this.request<User>(`/users/${id}`, {
+      return await this.request<User>(`${ENDPOINTS.USERS}/${id}`, {
         method: "PUT",
         body: JSON.stringify(userData),
       })
@@ -774,7 +947,7 @@ class ApiClient {
 
   async deleteUser(id: string): Promise<ApiResponse> {
     try {
-      return await this.request(`/users/${id}`, { method: "DELETE" })
+      return await this.request(`${ENDPOINTS.USERS}/${id}`, { method: "DELETE" })
     } catch (error) {
       console.warn(`API deleteUser failed for ID ${id}, using mock deletion`)
       // Mock user deletion

@@ -27,7 +27,7 @@ import ContentReviewDialog from "@/components/content-review-dialog"
 import { MobileContentReviewDialog } from "@/components/mobile-content-review-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
-import { getReviews } from "@/lib/api-client"
+import { getReviews, submitReview } from "@/lib/api-client"
 
 // Define interfaces
 interface FileData {
@@ -620,23 +620,46 @@ export default function ReviewPage() {
         try {
           console.log(`🔄 Saving review for submission ${submission.id}...`)
           
-          // Use the review API endpoint
-          await fetch(`/api/reviews/${submission.id}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              status: submission.workflowStage === 'validation' ? 'approved' : 'pending',
-              notes: `Review completed at ${new Date().toISOString()}`,
-              reviewerId: 'current-user-id', // TODO: Get from auth context
-              contentItems: submission.contentItems
-            })
-          })
+          // Analyze content items to determine overall status
+          const contentItems = submission.contentItems || []
+          const approvedItems = contentItems.filter(item => item.status === 'approved')
+          const rejectedItems = contentItems.filter(item => item.status === 'rejected')
+          const pendingItems = contentItems.filter(item => !item.status || item.status === 'pending')
           
-          console.log(`✅ Review saved for submission ${submission.id}`)
+          // Only send review if all items have been reviewed
+          if (pendingItems.length === 0 && contentItems.length > 0) {
+            // Determine overall status: if any approved, status is approved; if all rejected, status is rejected
+            const overallStatus = approvedItems.length > 0 ? 'approved' : 'rejected'
+            
+            const reviewData = {
+              status: overallStatus,
+              notes: `Review completed: ${approvedItems.length} approved, ${rejectedItems.length} rejected`,
+              reviewerId: 'current-user-id', // TODO: Get from auth context
+              contentItems: contentItems.map(item => ({
+                id: item.id,
+                status: item.status,
+                notes: item.alasanPenolakan || '',
+                processedAt: new Date().toISOString()
+              }))
+            }
+            
+            console.log(`📤 Sending review data for submission ${submission.id}:`, reviewData)
+            
+            // Use the submitReview API client function
+            const response = await submitReview(submission.id.toString(), reviewData)
+            
+            if (response.success) {
+              console.log(`✅ Review saved for submission ${submission.id}`)
+            } else {
+              console.error(`❌ Failed to save review for submission ${submission.id}:`, response.error)
+              throw new Error(response.error || 'Failed to save review')
+            }
+          } else {
+            console.log(`⏭️ Skipping submission ${submission.id} - still has pending items (${pendingItems.length}/${contentItems.length})`)
+          }
         } catch (error) {
           console.error(`❌ Failed to save review for submission ${submission.id}:`, error)
+          // Don't throw here to continue with other submissions
         }
       }
 

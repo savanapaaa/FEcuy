@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation"
 import { ValidasiOutputDialog } from "@/components/validasi-output-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
+import { useAuth } from "@/hooks/use-auth"
 import { getValidations, submitValidation } from "@/lib/api-client"
 
 // Define interfaces for type safety
@@ -77,8 +78,6 @@ interface Submission {
   contentItems?: ContentItem[]
   tanggalReview?: string
   workflowStage?: "submitted" | "review" | "validation" | "completed"
-  priority?: "high" | "normal" | "low"
-  deadline?: Date | undefined
 }
 
 export default function ValidasiOutputPage() {
@@ -91,6 +90,7 @@ export default function ValidasiOutputPage() {
   const router = useRouter()
   const { toast } = useToast()
   const isMobile = useMobile()
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth()
 
   // Generate dummy data for validation
   const generateDummyValidationData = (): Submission[] => {
@@ -161,59 +161,138 @@ export default function ValidasiOutputPage() {
     })
   }
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      console.log("🚫 Not authenticated, redirecting to login...")
+      router.push("/login")
+    }
+  }, [isAuthenticated, authLoading, router])
+
+    const themes = ["sosial", "ekonomi", "lingkungan"]
+    const contentTypes = ["video", "foto", "audio", "infografis", "podcast"]
+    const mediaOptions = ["TV", "Radio", "Facebook", "Instagram", "YouTube", "Website"]
+    const staff = ["Ahmad Rizki", "Siti Nurjannah", "Budi Santoso", "Dewi Lestari", "Eko Prasetyo"]
+    const supervisors = ["Dr. Agus Wibowo", "Ir. Lina Marlina", "Drs. Roni Saputra"]
+
+    return Array.from({ length: 8 }, (_, i) => {
+      const id = 1000 + i
+      const theme = themes[Math.floor(Math.random() * themes.length)]
+      const submitDate = getRandomDate(15)
+      const reviewDate = new Date(submitDate.getTime() + Math.random() * 5 * 24 * 60 * 60 * 1000)
+      
+      // Generate content items that have been approved and need validation
+      const contentItems: ContentItem[] = Array.from({ length: Math.floor(Math.random() * 4) + 2 }, (_, j) => ({
+        id: `content-${id}-${j}`,
+        nama: `Konten ${j + 1} - ${theme.charAt(0).toUpperCase() + theme.slice(1)}`,
+        jenisKonten: contentTypes[Math.floor(Math.random() * contentTypes.length)],
+        mediaPemerintah: [mediaOptions[Math.floor(Math.random() * mediaOptions.length)]],
+        mediaMassa: [mediaOptions[Math.floor(Math.random() * mediaOptions.length)]],
+        nomorSurat: `001/SURAT/${String(j + 1).padStart(2, '0')}/2024`,
+        narasiText: `Narasi untuk konten ${j + 1} mengenai ${theme}`,
+        sourceNarasi: ["Internal"],
+        sourceAudioDubbing: [],
+        sourceAudioBacksound: [],
+        sourcePendukungLainnya: [],
+        tanggalOrderMasuk: getRandomDate(20),
+        tanggalJadi: reviewDate,
+        tanggalTayang: undefined, // Will be set during validation
+        keterangan: `Konten ${j + 1} siap untuk validasi output`,
+        status: "approved" as const, // Only approved items need validation
+        tanggalDiproses: reviewDate.toISOString(),
+        diprosesoleh: "Admin Review",
+        isTayang: undefined, // To be determined during validation
+      }))
+
+      return {
+        id,
+        noComtab: `${String(i + 1).padStart(4, '0')}/IKP/${String(submitDate.getMonth() + 1).padStart(2, '0')}/${submitDate.getFullYear()}`,
+        pin: String(Math.floor(Math.random() * 9000) + 1000),
+        tema: theme,
+        judul: `Pengajuan ${theme.charAt(0).toUpperCase() + theme.slice(1)} - Batch ${i + 1}`,
+        jenisMedia: "Digital Media",
+        mediaPemerintah: [mediaOptions[Math.floor(Math.random() * mediaOptions.length)]],
+        mediaMassa: [mediaOptions[Math.floor(Math.random() * mediaOptions.length)]],
+        jenisKonten: contentItems.map(item => item.jenisKonten),
+        tanggalOrder: getRandomDate(25),
+        petugasPelaksana: staff[Math.floor(Math.random() * staff.length)],
+        supervisor: supervisors[Math.floor(Math.random() * supervisors.length)],
+        durasi: `${Math.floor(Math.random() * 10) + 5} hari`,
+        jumlahProduksi: `${contentItems.length} konten`,
+        tanggalSubmit: submitDate,
+        isConfirmed: true,
+        isOutputValidated: false, // Needs validation
+        contentItems,
+        tanggalReview: reviewDate.toISOString(),
+        workflowStage: "validation" as const,
+      }
+    })
+  }
+
   // Load submissions from server first, fallback to localStorage
   useEffect(() => {
+    // Skip if auth is still loading or user not authenticated
+    if (authLoading || !isAuthenticated) {
+      setIsLoading(false) // Set loading false if not authenticated
+      return
+    }
+
     const loadSubmissions = async () => {
       try {
         setIsLoading(true)
         console.log("🔄 Loading validations from server...")
         
+        // Check authentication first
+        const token = localStorage.getItem("auth_token")
+        const sessionData = localStorage.getItem("auth_session")
+        console.log("🔐 Auth status:", { 
+          hasToken: !!token, 
+          hasSession: !!sessionData,
+          tokenPreview: token ? `${token.substring(0, 10)}...` : null
+        })
+        
         // Use the API client function instead of fetch
         const response = await getValidations()
+        console.log("📡 API Response:", response)
         
         if (response.success && response.data) {
           console.log("✅ Validations loaded from server", response.data)
+          console.log("🔍 Raw API structure:", JSON.stringify(response.data, null, 2))
           
-          // Handle paginated response structure - cast to any to handle different response formats
-          const responseData = response.data as any
-          const validationItems = Array.isArray(responseData) ? responseData : (responseData.data || responseData)
+          // Handle paginated data structure
+          const validationItems = response.data.data || response.data
           console.log("📋 Validation items extracted:", validationItems)
+          console.log("📋 Number of items:", validationItems?.length || 0)
           
           // Transform API data to match frontend interface
           const transformedData = validationItems.map((item: any) => {
-            const user = item.user || {}
-            const validator = item.assigned_validator || {}
-            const reviews = item.reviews || []
-            const latestReview = reviews.length > 0 ? reviews[reviews.length - 1] : null
+            const submission = item.submission || {}
+            const user = submission.user || {}
+            const validator = item.validation_assignee || {}
             
-            console.log(`🔄 Transforming validation item ${item.id}:`, {
+            console.log(`🔄 Transforming item ${item.id}:`, {
               item_id: item.id,
-              user_id: item.user_id,
+              submission_id: item.submission_id,
               workflow_stage: item.workflow_stage,
-              status: item.status,
-              title: item.title,
-              description: item.description,
-              type: item.type,
-              latest_review_status: latestReview?.status,
-              validator: validator.name
+              validation_status: item.validation_status,
+              review_status: item.review_status,
+              submission: submission
             })
             
-            const submissionDate = new Date(item.created_at || Date.now())
-            const comtabNumber = `${String(item.id).padStart(4, '0')}/IKP/${String(submissionDate.getMonth() + 1).padStart(2, '0')}/${submissionDate.getFullYear()}`
+            // Generate dynamic COMTAB number based on submission data
+            const submissionDate = new Date(submission.created_at || item.created_at || Date.now())
+            const comtabNumber = `${String(submission.id || item.submission_id).padStart(4, '0')}/IKP/${String(submissionDate.getMonth() + 1).padStart(2, '0')}/${submissionDate.getFullYear()}`
             
             // Map submission type to readable theme
             const themeMap: { [key: string]: string } = {
               'content_creation': 'Pembuatan Konten',
-              'media_upload': 'Upload Media',
               'social_media': 'Media Sosial', 
               'publication': 'Publikasi',
               'documentation': 'Dokumentasi'
             }
             
-            // Map content type to readable format  
+            // Map content type to readable format
             const contentTypeMap: { [key: string]: string } = {
-              'content_creation': 'Pembuatan Konten',
-              'media_upload': 'Upload Media',
               'text': 'Artikel/Teks',
               'image': 'Gambar/Foto',
               'video': 'Video',
@@ -221,111 +300,140 @@ export default function ValidasiOutputPage() {
               'infographic': 'Infografis'
             }
             
-            // Get platform information from metadata
-            const metadata = item.metadata || {}
-            const platforms = metadata.platform || []
-            const tags = metadata.tags || []
+            // Gunakan submission_id sebagai ID utama untuk submission
+            const submissionId = submission.id || item.submission_id || item.id
             
-            const submissionId = item.id
-            
-            return {
+            const transformed = {
               id: submissionId,
               noComtab: comtabNumber,
               pin: String(submissionId).padStart(4, '0'),
-              tema: themeMap[item.type] || metadata.category || "Konten Umum",
-              judul: item.title || `Validasi Konten #${item.id}`,
+              tema: themeMap[submission.type] || submission.description || "Konten Umum",
+              judul: submission.title || `Validasi Konten #${item.id}`,
               jenisMedia: "Digital Media",
-              mediaPemerintah: platforms.includes('website') ? ["Website Resmi"] : ["Portal Berita"],
-              mediaMassa: platforms.filter((p: string) => ['instagram', 'facebook', 'tiktok', 'youtube'].includes(p)) || ["Media Online"],
-              jenisKonten: [contentTypeMap[item.type] || item.type || "content"],
-              tanggalOrder: new Date(item.created_at || Date.now()),
+              mediaPemerintah: ["Website Resmi", "Portal Berita"],
+              mediaMassa: ["Media Online", "Sosial Media"],
+              jenisKonten: [contentTypeMap[item.type] || item.type || "text"],
+              tanggalOrder: submission.created_at ? new Date(submission.created_at) : new Date(item.created_at || Date.now()),
               petugasPelaksana: user.name || "Tim Konten",
               supervisor: validator.name || "Supervisor Validasi",
-              durasi: `${Math.ceil((Date.now() - new Date(item.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24))} hari`,
+              durasi: `${Math.ceil((Date.now() - new Date(submission.created_at || item.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24))} hari`,
               jumlahProduksi: "1 konten",
-              tanggalSubmit: new Date(item.submitted_at || item.created_at || Date.now()),
-              isConfirmed: item.is_confirmed !== false,
-              isOutputValidated: item.validated_at !== null,
+              tanggalSubmit: submission.created_at ? new Date(submission.created_at) : new Date(item.created_at || Date.now()),
+              isConfirmed: submission.is_confirmed || true, // Default true untuk data API
+              isOutputValidated: item.validation_status === "validated" || item.validation_status === "published",
               workflowStage: item.workflow_stage || "validation",
-              tanggalReview: item.reviewed_at,
-              priority: item.priority || "normal", // Add priority field
-              deadline: item.deadline ? new Date(item.deadline) : undefined, // Add deadline field
+              tanggalReview: item.reviewed_at || submission.reviewed_at,
               contentItems: [{
                 id: item.id?.toString() || "1",
                 nama: item.title || "Konten Validasi",
-                jenisKonten: contentTypeMap[item.type] || item.type || "content",
-                mediaPemerintah: platforms.includes('website') ? ["Website Resmi"] : ["Portal Berita"],
-                mediaMassa: platforms.filter((p: string) => ['instagram', 'facebook', 'tiktok', 'youtube'].includes(p)) || ["Media Online"],
+                jenisKonten: contentTypeMap[item.type] || item.type || "text",
+                mediaPemerintah: ["Website Resmi"],
+                mediaMassa: ["Portal Berita"],
                 nomorSurat: `${String(item.id).padStart(3, '0')}/VALID/${String(submissionDate.getMonth() + 1).padStart(2, '0')}/${submissionDate.getFullYear()}`,
-                narasiText: item.description || "Konten siap untuk validasi output",
+                narasiText: item.content || "Konten siap untuk validasi output",
                 sourceNarasi: ["Tim Internal"],
-                sourceAudioDubbing: item.type === "media_upload" && metadata.category === "video" ? ["Audio Studio"] : [],
-                sourceAudioBacksound: item.type === "media_upload" && metadata.category === "video" ? ["Music Library"] : [],
-                sourcePendukungLainnya: tags.length > 0 ? tags : [],
-                tanggalOrderMasuk: new Date(item.created_at || Date.now()),
+                sourceAudioDubbing: item.type === "video" || item.type === "audio" ? ["Audio Studio"] : [],
+                sourceAudioBacksound: item.type === "video" ? ["Music Library"] : [],
+                sourcePendukungLainnya: item.file_path ? [item.original_filename] : [],
+                tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
                 tanggalJadi: item.updated_at ? new Date(item.updated_at) : new Date(),
-                tanggalTayang: item.published_at ? new Date(item.published_at) : undefined,
-                keterangan: item.notes || item.description || "Siap untuk validasi output",
-                status: latestReview?.status === "approved" ? "approved" : (latestReview?.status === "rejected" ? "rejected" : "pending"),
+                tanggalTayang: item.publish_date ? new Date(item.publish_date) : undefined,
+                keterangan: item.validation_notes || "Siap untuk validasi output",
+                status: item.review_status === "approved" ? "approved" : (item.review_status === "rejected" ? "rejected" : "pending"),
                 tanggalDiproses: item.reviewed_at || item.updated_at,
-                diprosesoleh: latestReview?.reviewer?.name || user.name || "Tim Review",
-                isTayang: item.published_at !== null,
+                diprosesoleh: item.reviewer?.name || user.name || "Tim Review",
+                isTayang: item.is_published || false,
                 tanggalValidasiTayang: item.validated_at,
-                validatorTayang: validator.name,
-                keteranganValidasi: item.notes,
-                alasanPenolakan: latestReview?.status === "rejected" ? latestReview.notes : undefined
-              }]
+                validatorTayang: item.validator?.name || validator.name,
+                keteranganValidasi: item.validation_notes,
+                alasanPenolakan: item.review_status === "rejected" ? item.review_notes : undefined
+              }],
+              // Additional fields from API
+              apiData: {
+                item_id: item.id,
+                submission_id: item.submission_id,
+                validation_status: item.validation_status,
+                review_status: item.review_status,
+                workflow_stage: item.workflow_stage,
+                validation_assigned_to: item.validation_assigned_to,
+                validated_by: item.validated_by,
+                file_info: {
+                  file_path: item.file_path,
+                  file_url: item.file_url,
+                  original_filename: item.original_filename,
+                  mime_type: item.mime_type,
+                  file_size: item.file_size
+                }
+              }
             }
+            
+            console.log(`✅ Transformed item ${item.id}:`, transformed)
+            return transformed
           })
           
-          // Filter hanya data yang perlu validasi berdasarkan kriteria API
+          // Filter submissions that need validation - sementara tampilkan semua untuk debugging
           const validationSubmissions = transformedData.filter((sub: Submission) => {
-            // Berdasarkan response API: workflow_stage = "validation" dan belum divalidasi
-            // Tambahkan kondisi yang lebih fleksibel untuk menampilkan semua data validation
-            const needsValidation = sub.workflowStage === "validation" && 
-                                  !sub.isOutputValidated &&
-                                  sub.isConfirmed
-            
-            console.log(`🔍 Item ${sub.id} validation check:`, {
+            // Log setiap item untuk debugging
+            console.log(`🔍 Checking item ${sub.id}:`, {
               workflowStage: sub.workflowStage,
               isOutputValidated: sub.isOutputValidated,
-              isConfirmed: sub.isConfirmed,
-              hasContentItems: sub.contentItems && sub.contentItems.length > 0,
-              contentItemStatus: sub.contentItems?.[0]?.status,
-              needsValidation
+              contentItems: sub.contentItems?.length || 0,
+              hasApprovedContent: sub.contentItems?.some(item => item.status === "approved"),
+              apiData: sub.apiData
             })
             
-            return needsValidation
+            // Sementara tampilkan semua data untuk debugging
+            // Nanti bisa dikembalikan ke filter yang lebih ketat
+            return true // Menampilkan semua data dulu
+            
+            // Kondisi asli untuk validasi (commented sementara):
+            /*
+            const isValidationStage = sub.workflowStage === "validation"
+            const notYetValidated = !sub.isOutputValidated
+            const hasContentItems = sub.contentItems && sub.contentItems.length > 0
+            const hasApprovedItems = sub.contentItems?.some(item => item.status === "approved")
+            
+            const shouldInclude = isValidationStage && notYetValidated && hasContentItems && hasApprovedItems
+            
+            console.log(`📋 Item ${sub.id} decision:`, {
+              isValidationStage,
+              notYetValidated, 
+              hasContentItems,
+              hasApprovedItems,
+              shouldInclude
+            })
+            
+            return shouldInclude
+            */
           })
           
-          console.log("📊 Total items from API:", transformedData.length)
-          console.log("📊 Items needing validation:", validationSubmissions.length)
+          console.log("📊 Total items from API:", validationItems.length)
+          console.log("📊 Items after transformation:", transformedData.length)
+          console.log("📊 Items showing (all for debug):", validationSubmissions.length)
           console.log("📊 Final validation data:", validationSubmissions)
-          
           setSubmissions(validationSubmissions)
           setFilteredSubmissions(validationSubmissions)
-          
-          if (validationSubmissions.length === 0) {
-            toast({
-              title: "Info",
-              description: `Ditemukan ${transformedData.length} submission dari API, ${transformedData.filter(s => s.workflowStage === "validation").length} dalam tahap validasi, tapi semua sudah divalidasi`,
-              variant: "default",
-            })
-          } else {
-            toast({
-              title: "Berhasil",
-              description: `Ditemukan ${validationSubmissions.length} item yang perlu validasi dari ${transformedData.length} total submission`,
-              variant: "default",
-            })
-          }
           
           // Update cache
           if (typeof window !== "undefined") {
             localStorage.setItem("validations_cache", JSON.stringify(validationSubmissions))
           }
           
+          // Show message if no data needs validation
+          if (validationSubmissions.length === 0) {
+            console.log("ℹ️ No items need validation at this time")
+            toast({
+              title: "Info",
+              description: "Tidak ada item yang memerlukan validasi saat ini",
+              variant: "default",
+            })
+          }
+          
           return
         }
+        
+        console.log("❌ No valid data from API response")
+        throw new Error("Invalid API response format")
         
         throw new Error("Server not available")
         
@@ -353,8 +461,8 @@ export default function ValidasiOutputPage() {
             submissionsData = parsedSubmissions.filter((sub: Submission) => {
               if (sub.workflowStage !== "validation") return false
               if (sub.isOutputValidated) return false
-              if (!sub.isConfirmed) return false
-              return true // Simplify condition
+              const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+              return hasApprovedItems
             })
             
             setSubmissions(submissionsData)
@@ -373,7 +481,7 @@ export default function ValidasiOutputPage() {
     }
 
     loadSubmissions()
-  }, [])
+  }, [isAuthenticated, authLoading]) // Add dependencies
 
   // Filter submissions based on search term
   useEffect(() => {
@@ -385,6 +493,134 @@ export default function ValidasiOutputPage() {
     )
     setFilteredSubmissions(filtered)
   }, [searchTerm, submissions])
+
+  // Function to refresh data from API
+  const refreshDataFromAPI = async () => {
+    try {
+      setIsLoading(true)
+      console.log("🔄 Refreshing data from API...")
+      
+      const response = await getValidations()
+      
+      if (response.success && response.data) {
+        const validationItems = response.data.data || response.data
+        
+        // Transform API data
+        const transformedData = validationItems.map((item: any) => {
+          const submission = item.submission || {}
+          const user = submission.user || {}
+          const validator = item.validation_assignee || {}
+          
+          const submissionDate = new Date(submission.created_at || Date.now())
+          const comtabNumber = `${String(submission.id).padStart(4, '0')}/IKP/${String(submissionDate.getMonth() + 1).padStart(2, '0')}/${submissionDate.getFullYear()}`
+          
+          const themeMap: { [key: string]: string } = {
+            'content_creation': 'Pembuatan Konten',
+            'social_media': 'Media Sosial', 
+            'publication': 'Publikasi',
+            'documentation': 'Dokumentasi'
+          }
+          
+          const contentTypeMap: { [key: string]: string } = {
+            'text': 'Artikel/Teks',
+            'image': 'Gambar/Foto',
+            'video': 'Video',
+            'audio': 'Audio/Podcast',
+            'infographic': 'Infografis'
+          }
+          
+          return {
+            id: submission.id || item.id,
+            noComtab: comtabNumber,
+            pin: String(submission.id || item.id).padStart(4, '0'),
+            tema: themeMap[submission.type] || submission.description || "Konten Umum",
+            judul: submission.title || `Validasi Konten #${item.id}`,
+            jenisMedia: "Digital Media",
+            mediaPemerintah: ["Website Resmi", "Portal Berita"],
+            mediaMassa: ["Media Online", "Sosial Media"],
+            jenisKonten: [contentTypeMap[item.type] || item.type || "text"],
+            tanggalOrder: submission.created_at ? new Date(submission.created_at) : new Date(),
+            petugasPelaksana: user.name || "Tim Konten",
+            supervisor: validator.name || "Supervisor Validasi",
+            durasi: `${Math.ceil((Date.now() - new Date(submission.created_at || Date.now()).getTime()) / (1000 * 60 * 60 * 24))} hari`,
+            jumlahProduksi: "1 konten",
+            tanggalSubmit: submission.created_at ? new Date(submission.created_at) : new Date(),
+            isConfirmed: submission.is_confirmed || false,
+            isOutputValidated: item.validation_status === "validated" || item.validation_status === "published",
+            workflowStage: item.workflow_stage || "validation",
+            tanggalReview: item.reviewed_at || submission.reviewed_at,
+            contentItems: [{
+              id: item.id?.toString() || "1",
+              nama: item.title || "Konten Validasi",
+              jenisKonten: contentTypeMap[item.type] || item.type || "text",
+              mediaPemerintah: ["Website Resmi"],
+              mediaMassa: ["Portal Berita"],
+              nomorSurat: `${String(item.id).padStart(3, '0')}/VALID/${String(submissionDate.getMonth() + 1).padStart(2, '0')}/${submissionDate.getFullYear()}`,
+              narasiText: item.content || "Konten siap untuk validasi output",
+              sourceNarasi: ["Tim Internal"],
+              sourceAudioDubbing: item.type === "video" || item.type === "audio" ? ["Audio Studio"] : [],
+              sourceAudioBacksound: item.type === "video" ? ["Music Library"] : [],
+              sourcePendukungLainnya: item.file_path ? [item.original_filename] : [],
+              tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
+              tanggalJadi: item.updated_at ? new Date(item.updated_at) : new Date(),
+              tanggalTayang: item.publish_date ? new Date(item.publish_date) : undefined,
+              keterangan: item.validation_notes || "Siap untuk validasi output",
+              status: item.review_status === "approved" ? "approved" : (item.review_status === "rejected" ? "rejected" : "pending"),
+              tanggalDiproses: item.reviewed_at || item.updated_at,
+              diprosesoleh: item.reviewer?.name || user.name || "Tim Review",
+              isTayang: item.is_published || false,
+              tanggalValidasiTayang: item.validated_at,
+              validatorTayang: item.validator?.name || validator.name,
+              keteranganValidasi: item.validation_notes,
+              alasanPenolakan: item.review_status === "rejected" ? item.review_notes : undefined
+            }],
+            apiData: {
+              validation_status: item.validation_status,
+              review_status: item.review_status,
+              workflow_stage: item.workflow_stage,
+              validation_assigned_to: item.validation_assigned_to,
+              validated_by: item.validated_by,
+              file_info: {
+                file_path: item.file_path,
+                file_url: item.file_url,
+                original_filename: item.original_filename,
+                mime_type: item.mime_type,
+                file_size: item.file_size
+              }
+            }
+          }
+        })
+        
+        const validationSubmissions = transformedData.filter((sub: Submission) => {
+          return sub.workflowStage === "validation" && 
+                 !sub.isOutputValidated &&
+                 sub.contentItems &&
+                 sub.contentItems.length > 0 &&
+                 sub.contentItems.some(item => item.status === "approved")
+        })
+        
+        setSubmissions(validationSubmissions)
+        setFilteredSubmissions(validationSubmissions)
+        
+        toast({
+          title: "Berhasil",
+          description: `Data berhasil diperbarui. Ditemukan ${validationSubmissions.length} item untuk validasi`,
+          variant: "default",
+        })
+      } else {
+        throw new Error("Failed to fetch data")
+      }
+    } catch (error) {
+      console.error("❌ Failed to refresh data:", error)
+      toast({
+        title: "Error",
+        description: "Gagal memuat data dari server",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Function to reset and load dummy data
   const loadDummyData = () => {
@@ -402,46 +638,16 @@ export default function ValidasiOutputPage() {
     try {
       console.log(`🔄 Validating submission ${submissionId}...`)
       
-      // Check if user is authenticated first
-      if (typeof window !== "undefined") {
-        const token = localStorage.getItem("auth_token")
-        const user = localStorage.getItem("user")
-        
-        if (!token || !user) {
-          console.log("🔐 No authentication found, performing auto-login for validation...")
-          
-          // Auto-login as validator for testing
-          const { login } = await import("@/lib/api-client")
-          const loginResponse = await login({ username: "validasi", password: "password" })
-          
-          if (!loginResponse.success) {
-            throw new Error("Authentication failed - unable to login as validator")
-          }
-          
-          console.log("✅ Auto-login successful for validator")
-        }
-      }
-      
-      // Prepare validation data according to API schema
-      const validationData = {
-        status: 'validated' as const,
-        notes: `Validated at ${new Date().toISOString()} - Content approved for publication`,
-        validatorId: '1', // TODO: Get from auth context - current user ID
-        publishDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
-        publishedContent: {
-          platform: 'website',
-          scheduled: true,
-          validatedAt: new Date().toISOString()
-        }
-      }
-      
-      console.log(`📤 Sending validation data:`, validationData)
-      
       // Submit validation using API client
-      const response = await submitValidation(submissionId.toString(), validationData)
+      const response = await submitValidation(submissionId.toString(), {
+        status: 'validated',
+        notes: `Validated at ${new Date().toISOString()}`,
+        validatorId: 'current-user-id', // TODO: Get from auth context
+        publishDate: new Date().toISOString()
+      })
       
       if (response.success) {
-        console.log(`✅ Submission ${submissionId} validated on server:`, response.data)
+        console.log(`✅ Submission ${submissionId} validated on server`)
         
         // Update local state
         const updatedSubmissions = submissions.map((sub) =>
@@ -459,8 +665,8 @@ export default function ValidasiOutputPage() {
         const stillNeedValidation = updatedSubmissions.filter((sub) => {
           if (sub.workflowStage !== "validation") return false
           if (sub.isOutputValidated) return false
-          if (!sub.isConfirmed) return false
-          return true // Simplify condition - show all validation stage items that aren't validated yet
+          const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+          return hasApprovedItems
         })
 
         setSubmissions(stillNeedValidation)
@@ -497,19 +703,19 @@ export default function ValidasiOutputPage() {
         
         toast({
           title: "Validasi Berhasil",
-          description: response.message || "Submission telah divalidasi dan disimpan ke server",
+          description: "Submission telah divalidasi dan disimpan ke server",
           variant: "default",
         })
         
       } else {
-        throw new Error(`Server error: ${response.message || 'Unknown error'}`)
+        throw new Error(`Server error: ${response.status}`)
       }
       
     } catch (error) {
       console.error(`❌ Failed to validate submission ${submissionId}:`, error)
       toast({
         title: "Gagal Validasi",
-        description: `Terjadi kesalahan saat menyimpan validasi ke server: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: "Terjadi kesalahan saat menyimpan validasi ke server",
         variant: "destructive",
       })
     }
@@ -564,8 +770,8 @@ export default function ValidasiOutputPage() {
     const validationSubmissions = updatedSubmissions.filter((sub: Submission) => {
       if (sub.workflowStage !== "validation") return false
       if (sub.isOutputValidated) return false
-      if (!sub.isConfirmed) return false
-      return true // Simplify condition
+      const hasApprovedItems = sub.contentItems?.some((item) => item.status === "approved")
+      return hasApprovedItems
     })
 
     setSubmissions(validationSubmissions)
@@ -577,6 +783,27 @@ export default function ValidasiOutputPage() {
           sub.judul.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     )
+  }
+
+  // Show loading while auth is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-gray-50 to-yellow-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center space-y-4"
+        >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto"></div>
+          <p className="font-semibold text-yellow-700 text-base">Memeriksa autentikasi...</p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  // Return null if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null
   }
 
   if (isLoading) {
@@ -652,10 +879,12 @@ export default function ValidasiOutputPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.location.reload()}
-                className="border-yellow-200 text-yellow-600 hover:bg-yellow-50 p-2"
+                onClick={refreshDataFromAPI}
+                disabled={isLoading}
+                className="border-yellow-200 text-yellow-600 hover:bg-yellow-50 px-3 py-2"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh API</span>
               </Button>
             </motion.div>
           </div>
@@ -900,45 +1129,25 @@ export default function ValidasiOutputPage() {
                         </div>
                       </div>
 
-                      {/* Priority and Deadline Info */}
-                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex items-center space-x-1">
-                            <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600" />
-                            <span className="text-xs sm:text-sm font-medium text-yellow-700">
-                              Priority: {submission.priority === 'high' ? 'High' : 
-                                       submission.priority === 'normal' ? 'Normal' : 
-                                       submission.priority === 'low' ? 'Low' : 'Medium'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
-                          <span className="text-xs sm:text-sm font-medium text-orange-700">
-                            {submission.durasi}
-                          </span>
-                        </div>
-                      </div>
-
                       {/* Document Information */}
                       <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-center justify-between text-xs sm:text-sm">
                           <div className="flex items-center space-x-2 text-gray-600">
-                            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span>Validator:</span>
+                            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span>Petugas:</span>
                           </div>
                           <span className="font-medium text-gray-900 truncate max-w-32 sm:max-w-48">
-                            {submission.supervisor || 'Tidak tersedia'}
+                            {submission.petugasPelaksana || 'Tidak tersedia'}
                           </span>
                         </div>
 
                         <div className="flex items-center justify-between text-xs sm:text-sm">
                           <div className="flex items-center space-x-2 text-gray-600">
-                            <User className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span>Pembuat:</span>
+                            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span>Supervisor:</span>
                           </div>
                           <span className="font-medium text-gray-900 truncate max-w-32 sm:max-w-48">
-                            {submission.petugasPelaksana || 'Tidak tersedia'}
+                            {submission.supervisor || 'Tidak tersedia'}
                           </span>
                         </div>
 
@@ -948,25 +1157,6 @@ export default function ValidasiOutputPage() {
                             <span>Submit:</span>
                           </div>
                           <span className="font-medium text-gray-900">{formatDate(submission.tanggalSubmit)}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-xs sm:text-sm">
-                          <div className="flex items-center space-x-2 text-gray-600">
-                            <Tag className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span>Platform:</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 max-w-32 sm:max-w-48">
-                            {submission.mediaMassa?.slice(0, 2).map((media, idx) => (
-                              <Badge key={idx} variant="outline" className="border-blue-200 text-blue-700 text-xs px-1 py-0">
-                                {media}
-                              </Badge>
-                            ))}
-                            {submission.mediaMassa && submission.mediaMassa.length > 2 && (
-                              <Badge variant="outline" className="border-gray-200 text-gray-600 text-xs px-1 py-0">
-                                +{submission.mediaMassa.length - 2}
-                              </Badge>
-                            )}
-                          </div>
                         </div>
 
                         <div className="flex items-center justify-between text-xs sm:text-sm">
