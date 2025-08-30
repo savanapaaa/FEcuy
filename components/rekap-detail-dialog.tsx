@@ -815,31 +815,31 @@ export function RekapDetailDialog({ isOpen, onOpenChange, submission, onUpdate }
                   <div className="space-y-3">
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Tema</Label>
-                      <p className="text-sm text-gray-900 capitalize">{submission.tema}</p>
+                      <p className="text-sm text-gray-900 capitalize">{submission.tema || '-'}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">No. Comtab</Label>
-                      <p className="text-sm text-gray-900 font-mono">{submission.noComtab}</p>
+                      <p className="text-sm text-gray-900 font-mono">{submission.noComtab || '-'}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Petugas Pelaksana</Label>
-                      <p className="text-sm text-gray-900">{submission.petugasPelaksana}</p>
+                      <p className="text-sm text-gray-900">{submission.petugasPelaksana || '-'}</p>
                     </div>
                   </div>
                   <div className="space-y-3">
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Supervisor</Label>
-                      <p className="text-sm text-gray-900">{submission.supervisor}</p>
+                      <p className="text-sm text-gray-900">{submission.supervisor || '-'}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Tanggal Submit</Label>
                       <p className="text-sm text-gray-900">
-                        {format(new Date(submission.tanggalSubmit), "dd MMMM yyyy, HH:mm")}
+                        {submission.tanggalSubmit ? format(new Date(submission.tanggalSubmit), "dd MMMM yyyy, HH:mm") : '-'}
                       </p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Jumlah Produksi</Label>
-                      <p className="text-sm text-gray-900">{submission.jumlahProduksi} item</p>
+                      <p className="text-sm text-gray-900">{submission.jumlahProduksi ? `${submission.jumlahProduksi} item` : '-'}</p>
                     </div>
                   </div>
                 </div>

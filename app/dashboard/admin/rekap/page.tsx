@@ -158,6 +158,104 @@ export default function RekapPage() {
     const themes = ["sosial", "ekonomi", "lingkungan"]
 
     const dummySubmissions: Submission[] = [
+      // Submission dengan status submitted (baru)
+      {
+        id: 999,
+        noComtab: "COMTAB-2024-999",
+        pin: "PIN999",
+        judul: "Kampanye Kesehatan Mental Remaja",
+        jenisMedia: "Video",
+        tanggalOrder: getRandomDate(5),
+        petugasPelaksana: "Dewi Lestari",
+        supervisor: "Dr. Agus Wibowo",
+        durasi: "10 Menit",
+        jumlahProduksi: "1",
+        tanggalSubmit: getRandomDate(2),
+        tema: "sosial",
+        workflowStage: "submitted",
+        contentItems: [
+          {
+            id: "999",
+            nama: "Video Edukasi Kesehatan Mental",
+            jenisKonten: "video",
+            mediaPemerintah: ["YouTube", "Website Resmi"],
+            mediaMassa: ["Instagram", "TikTok"],
+            nomorSurat: "999/MENTAL/2024",
+            narasiText: "Edukasi pentingnya kesehatan mental remaja",
+            tanggalOrderMasuk: getRandomDate(5),
+            tanggalJadi: undefined,
+            tanggalTayang: undefined,
+            keterangan: "Video animasi edukasi",
+            status: "pending"
+          }
+        ]
+      },
+      // Submission dengan status review (sedang direview)
+      {
+        id: 998,
+        noComtab: "COMTAB-2024-998",
+        pin: "PIN998",
+        judul: "Infografis Program Bantuan UMKM",
+        jenisMedia: "Grafis",
+        tanggalOrder: getRandomDate(10),
+        petugasPelaksana: "Eko Prasetyo",
+        supervisor: "Ir. Lina Marlina",
+        durasi: "N/A",
+        jumlahProduksi: "5",
+        tanggalSubmit: getRandomDate(8),
+        tanggalReview: getRandomDate(3),
+        tema: "ekonomi",
+        workflowStage: "review",
+        contentItems: [
+          {
+            id: "998",
+            nama: "Infografis Bantuan UMKM 2024",
+            jenisKonten: "infografis",
+            mediaPemerintah: ["Website Resmi", "Billboard"],
+            mediaMassa: ["Facebook", "Instagram"],
+            nomorSurat: "998/UMKM/2024",
+            narasiText: "Infografis program bantuan UMKM tahun 2024",
+            tanggalOrderMasuk: getRandomDate(10),
+            tanggalJadi: getRandomDate(5),
+            tanggalTayang: undefined,
+            keterangan: "Desain modern dengan warna corporate",
+            status: "pending"
+          }
+        ]
+      },
+      // Submission dengan status validation (menunggu validasi)
+      {
+        id: 997,
+        noComtab: "COMTAB-2024-997",
+        pin: "PIN997",
+        judul: "Podcast Diskusi Lingkungan Hidup",
+        jenisMedia: "Audio",
+        tanggalOrder: getRandomDate(15),
+        petugasPelaksana: "Fitri Handayani",
+        supervisor: "Drs. Roni Saputra",
+        durasi: "45 Menit",
+        jumlahProduksi: "1",
+        tanggalSubmit: getRandomDate(12),
+        tanggalReview: getRandomDate(7),
+        tema: "lingkungan",
+        workflowStage: "validation",
+        contentItems: [
+          {
+            id: "997",
+            nama: "Podcast Green City Initiative",
+            jenisKonten: "audio",
+            mediaPemerintah: ["Spotify", "Website Resmi"],
+            mediaMassa: ["Apple Podcast", "YouTube"],
+            nomorSurat: "997/GREEN/2024",
+            narasiText: "Diskusi program kota hijau dan lingkungan berkelanjutan",
+            tanggalOrderMasuk: getRandomDate(15),
+            tanggalJadi: getRandomDate(9),
+            tanggalTayang: undefined,
+            keterangan: "Audio berkualitas tinggi dengan narasumber ahli",
+            status: "approved"
+          }
+        ]
+      },
       {
         id: 1,
         noComtab: "COMTAB-2024-001",
@@ -539,13 +637,13 @@ export default function RekapPage() {
   const loadSubmissions = async () => {
     try {
       setIsLoading(true)
-      console.log("🔄 Loading completed submissions from server...")
+      console.log("🔄 Loading all submissions from server...")
       
-  // Use API client function with completed filter (include workflow_stage to be explicit)
-  const response = await getSubmissions({ status: 'submitted', workflow_stage: 'completed' })
+  // Use API client function without any filter to get all data
+  const response = await getSubmissions({})
       
       if (response.success && response.data) {
-        console.log("✅ Completed submissions loaded from server")
+        console.log("✅ All submissions loaded from server")
 
         // Support paginated response formats: either array or { data: [] }
         const raw = response.data as any
@@ -607,8 +705,8 @@ export default function RekapPage() {
           }
         })
 
-        // Keep only completed submissions as requested
-        const transformedSubmissions = normalized.filter((s: any) => s.workflowStage === "completed" && s.isOutputValidated)
+        // Show all submissions regardless of status
+        const transformedSubmissions = normalized
 
         setSubmissions(transformedSubmissions)
         setFilteredSubmissions(transformedSubmissions)
@@ -640,12 +738,8 @@ export default function RekapPage() {
         if (savedSubmissions) {
           const parsedSubmissions: Submission[] = JSON.parse(savedSubmissions)
 
-          // Show all submissions that have been completed (validated)
-          const completedSubmissions = parsedSubmissions.filter((sub: Submission) => {
-            return sub.workflowStage === "completed" && sub.isOutputValidated
-          })
-
-          allSubmissions = completedSubmissions
+          // Show all submissions regardless of status
+          allSubmissions = parsedSubmissions
         }
 
         // Add dummy data for demonstration
@@ -796,6 +890,12 @@ export default function RekapPage() {
   }, [submissions, filters])
 
   const handleViewDetail = (submission: Submission) => {
+    console.log("Opening detail for submission:", submission)
+    console.log("Tema:", submission.tema)
+    console.log("NoComtab:", submission.noComtab)
+    console.log("Petugas:", submission.petugasPelaksana)
+    console.log("Supervisor:", submission.supervisor)
+    console.log("TanggalSubmit:", submission.tanggalSubmit)
     setSelectedSubmission(submission)
     setIsDialogOpen(true)
   }
@@ -1805,9 +1905,9 @@ export default function RekapPage() {
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs sm:text-sm font-medium text-gray-700">Progress Workflow</span>
                             <span className="text-xs text-gray-500">
-                              {submission.tanggalReview && submission.isOutputValidated
+                              {submission.isOutputValidated
                                 ? "100%"
-                                : submission.isOutputValidated || submission.tanggalReview
+                                : submission.tanggalReview
                                   ? "66%"
                                   : submission.tanggalSubmit
                                     ? "33%"
