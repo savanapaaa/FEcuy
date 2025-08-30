@@ -814,12 +814,27 @@ class ApiClient {
       }
       
       // Use POST method and correct endpoint structure based on API documentation
+      // Map validation_data to backend-required fields
+      const mappedStatus = validationData.status
+        ? validationData.status
+        : (validationData.validation_status === 'setuju' ? 'validated' : (validationData.validation_status === 'ditolak' ? 'rejected' : undefined))
+
+      const requestBody: any = {
+        // Backend requires `status` (e.g. 'validated'|'rejected'|'published')
+        ...(mappedStatus && { status: mappedStatus }),
+        // Keep legacy field if frontend sends it
+        ...(validationData.validation_status && { validation_status: validationData.validation_status }),
+        notes: validationData.notes,
+      }
+
+      // Include optional fields if provided
+      if (validationData.validatorId) requestBody.validator_id = validationData.validatorId
+      if (validationData.publishDate) requestBody.publish_date = validationData.publishDate
+      if (validationData.publishedContent) requestBody.published_content = validationData.publishedContent
+
       const response = await this.request<any>(`${ENDPOINTS.VALIDATIONS}/${id}`, {
         method: "POST", // Based on swagger documentation
-        body: JSON.stringify({
-          validation_status: validationData.status || validationData.validation_status,
-          notes: validationData.notes
-        }),
+        body: JSON.stringify(requestBody),
       })
       
       console.log(`✅ Validation submitted successfully for ID ${id}:`, response)

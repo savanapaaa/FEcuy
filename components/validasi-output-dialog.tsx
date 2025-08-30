@@ -48,7 +48,7 @@ import {
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import PreviewModal from "./preview-modal"
-import { submitValidation, login } from "@/lib/api-client"
+import { submitValidation, login, getCurrentUser } from "@/lib/api-client"
 import { loadSubmissionsFromStorage, saveSubmissionsToStorage, getFileIcon, downloadFile } from "@/lib/utils"
 import { MobileValidasiOutputDialog } from "./mobile-validasi-output-dialog"
 
@@ -149,7 +149,8 @@ interface ValidasiOutputDialogProps {
   onOpenChange: (open: boolean) => void
   submission: Submission | null
   contentItem?: ContentItem | null
-  onUpdate: (submissions: Submission[]) => void
+  // Accept any[] to avoid type mismatches between different Submission definitions across files
+  onUpdate: (submissions: any[]) => void
   onToast: (message: string, type: "success" | "error" | "info") => void
 }
 
@@ -655,6 +656,7 @@ export function ValidasiOutputDialog({
     fileName: "",
     title: "",
   })
+  const [showRawDebug, setShowRawDebug] = useState(false)
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -685,8 +687,16 @@ export function ValidasiOutputDialog({
 
   if (!submission) return null
 
-  const approvedItems = submission.contentItems?.filter((item) => item.status === "approved") || []
+  const approvedItems = submission.contentItems?.filter((item) => item.status === "pending") || []
   const currentItem = contentItem || approvedItems[currentStep]
+
+  // console.log("submission:", submission)
+  useEffect(() => {
+    // log submission whenever it changes
+    console.log("submission: ", submission)
+    console.log("approvedItems: ", approvedItems)
+    console.log("currentItems: ", currentItem)
+  }, [submission])
 
   if (!currentItem && approvedItems.length === 0) {
     return (
@@ -947,15 +957,75 @@ export function ValidasiOutputDialog({
       }
       console.log('=== End debug ===')
 
-      // Submit validation using API with correct status mapping
-      const submissionId = submission.id.toString()
-      const validationStatus = Object.values(validationDecisions).some(decision => decision === true) ? 'setuju' : 'ditolak'
-      const notes = Object.values(validationNotes).join('; ')
+      // Submit validation using API with correct status mapping and additional metadata
+      const submissionId = submission?.id?.toString() || "0"
 
-      await submitValidation(submissionId, {
+      const hasTayang = Object.values(validationDecisions).some((decision) => decision === true)
+      const validationStatus = hasTayang ? "setuju" : "ditolak"
+      // Map to backend status (api-client will also map if provided)
+      const status = hasTayang ? "validated" : "rejected"
+
+      const notes = Object.values(validationNotes).filter(Boolean).join('; ') || null
+
+      // Try to extract current user id from local storage (fallback safe parsing)
+      let validatorId: string | undefined = undefined
+      try {
+        const candidateKeys = ["user", "auth_user", "currentUser", "current_user"]
+        for (const key of candidateKeys) {
+          const raw = typeof window !== "undefined" ? localStorage.getItem(key) : null
+          if (!raw) continue
+          try {
+            const parsed = JSON.parse(raw)
+            if (parsed && (parsed.id || parsed.user_id)) {
+              validatorId = String(parsed.id || parsed.user_id)
+              break
+            }
+          } catch (e) {
+            // If value isn't JSON, skip
+            continue
+          }
+        }
+      } catch (err) {
+        console.warn("Could not parse user from localStorage for validatorId", err)
+      }
+
+      // If still not found, try asking API client for current user (may return stored or mock user)
+      if (!validatorId) {
+        try {
+          const userResp = await getCurrentUser()
+          if (userResp && userResp.success && userResp.data && (userResp.data as any).id) {
+            validatorId = String((userResp.data as any).id)
+          }
+        } catch (err) {
+          console.warn("getCurrentUser fallback failed:", err)
+        }
+      }
+
+      // Prepare published_content array for tayang items
+      const publishedContent = Object.keys(validationDecisions)
+        .filter((id) => validationDecisions[id] === true)
+        .map((id) => ({
+          id,
+          publish_date: tayangDates[id] || null,
+          hasil_produk_file: hasilProdukFiles[id] ? (hasilProdukFiles[id].name || getFileDisplayName(hasilProdukFiles[id])) : null,
+          hasil_produk_link: hasilProdukLinks[id] || null,
+        }))
+
+      const payload: any = {
+        // send both frontend-friendly and backend-required fields
         validation_status: validationStatus,
-        notes: notes || null
-      })
+        status,
+        notes,
+      }
+
+      if (validatorId) {
+        // Send both camelCase and snake_case to be robust against backend naming
+        payload.validatorId = validatorId
+        payload.validator_id = validatorId
+      }
+      if (publishedContent.length > 0) payload.publishedContent = publishedContent
+
+      await submitValidation(submissionId, payload)
 
       const tayangCount = Object.values(validationDecisions).filter((d) => d === true).length
       const tidakTayangCount = Object.values(validationDecisions).filter((d) => d === false).length
@@ -1816,7 +1886,7 @@ export function ValidasiOutputDialog({
       {/* Preview Modal */}
       <PreviewModal
         isOpen={previewModal.isOpen}
-        onClose={() => setPreviewModal((prev) => ({ ...prev, isOpen: false }))}
+        onOpenChange={() => setPreviewModal((prev) => ({ ...prev, isOpen: false }))}
         file={previewModal.file}
         url={previewModal.url}
         type={previewModal.type}
