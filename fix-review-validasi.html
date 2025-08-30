@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Review → Validasi - FEcuy</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .issue {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .item-card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .missing-item {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+        .present-item {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .fix-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .fix-button:hover {
+            background-color: #1e7e34;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .stage-review { background-color: #cce5ff; color: #004085; }
+        .stage-validation { background-color: #fff2cc; color: #856404; }
+        .stage-completed { background-color: #d4edda; color: #155724; }
+        .counter {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom: 2px solid #007bff;
+            background-color: #e3f2fd;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Review → Validasi</h1>
+        <p>Tool untuk memperbaiki masalah dimana reviewed items tidak masuk ke halaman validasi</p>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('analysis')">📊 Analisis</div>
+            <div class="tab" onclick="showTab('fix')">🔧 Perbaikan</div>
+            <div class="tab" onclick="showTab('verification')">✅ Verifikasi</div>
+        </div>
+
+        <div id="analysis" class="tab-content active">
+            <h2>📊 Analisis Data</h2>
+            <div id="analysis-summary"></div>
+            <div id="reviewed-items"></div>
+            <div id="missing-items"></div>
+        </div>
+
+        <div id="fix" class="tab-content">
+            <h2>🔧 Perbaikan Otomatis</h2>
+            <div id="fix-options">
+                <button onclick="fixWorkflowStages()" class="fix-button">
+                    📝 Perbaiki Workflow Stages
+                </button>
+                <button onclick="syncValidationData()" class="fix-button">
+                    🔄 Sync Validation Data
+                </button>
+                <button onclick="forceAddToValidation()" class="fix-button">
+                    ➕ Paksa Tambah ke Validasi
+                </button>
+            </div>
+            <div id="fix-results"></div>
+        </div>
+
+        <div id="verification" class="tab-content">
+            <h2>✅ Verifikasi Hasil</h2>
+            <button onclick="verifyFix()" class="fix-button">🔍 Cek Ulang Data</button>
+            <div id="verification-results"></div>
+        </div>
+    </div>
+
+    <script>
+        let analysisData = {};
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function analyzeReviewToValidation() {
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            const validationCache = JSON.parse(localStorage.getItem('validations_cache') || '[]');
+            
+            // 1. Find all reviewed items (completed review process)
+            const reviewedItems = submissions.filter(sub => {
+                const contentItems = sub.contentItems || [];
+                if (contentItems.length === 0) return false;
+                
+                // Check if all content items have been reviewed
+                const allReviewed = contentItems.every(item => 
+                    item.status === "approved" || item.status === "rejected"
+                );
+                
+                return allReviewed && sub.isConfirmed;
+            });
+            
+            // 2. Find items that should be in validation (have approved content)
+            const shouldBeInValidation = reviewedItems.filter(sub => {
+                const contentItems = sub.contentItems || [];
+                const hasApproved = contentItems.some(item => item.status === "approved");
+                return hasApproved && !sub.isOutputValidated;
+            });
+            
+            // 3. Find items currently in validation cache
+            const inValidationCache = validationCache.length;
+            
+            // 4. Find missing items
+            const missingFromValidation = shouldBeInValidation.filter(sub => 
+                !validationCache.find(cached => cached.id === sub.id)
+            );
+            
+            analysisData = {
+                totalSubmissions: submissions.length,
+                reviewedItems,
+                shouldBeInValidation,
+                inValidationCache,
+                missingFromValidation
+            };
+            
+            displayAnalysis();
+        }
+
+        function displayAnalysis() {
+            const { totalSubmissions, reviewedItems, shouldBeInValidation, inValidationCache, missingFromValidation } = analysisData;
+            
+            // Summary
+            document.getElementById('analysis-summary').innerHTML = `
+                <div class="item-card">
+                    <h3>📋 Ringkasan</h3>
+                    <p><strong>Total Submissions:</strong> <span class="counter">${totalSubmissions}</span></p>
+                    <p><strong>Items yang sudah di-review:</strong> <span class="counter">${reviewedItems.length}</span></p>
+                    <p><strong>Yang seharusnya di validasi:</strong> <span class="counter">${shouldBeInValidation.length}</span></p>
+                    <p><strong>Yang ada di validasi sekarang:</strong> <span class="counter">${inValidationCache}</span></p>
+                    <p><strong>Yang hilang:</strong> <span class="counter">${missingFromValidation.length}</span></p>
+                </div>
+            `;
+            
+            // Reviewed items detail
+            if (reviewedItems.length > 0) {
+                let reviewedHtml = '<h3>📝 Items yang Sudah Di-review</h3>';
+                reviewedItems.forEach((sub, i) => {
+                    const contentItems = sub.contentItems || [];
+                    const approvedCount = contentItems.filter(item => item.status === "approved").length;
+                    const rejectedCount = contentItems.filter(item => item.status === "rejected").length;
+                    const hasApproved = approvedCount > 0;
+                    const shouldBeInVal = hasApproved && !sub.isOutputValidated;
+                    
+                    reviewedHtml += `
+                        <div class="item-card ${shouldBeInVal ? 'missing-item' : 'present-item'}">
+                            <strong>${i+1}. ${sub.judul}</strong> (ID: ${sub.id})
+                            <br><span class="status-badge stage-${sub.workflowStage || 'undefined'}">${sub.workflowStage || 'undefined'}</span>
+                            <br>Content: ${approvedCount} approved, ${rejectedCount} rejected
+                            <br>Review Date: ${sub.tanggalReview || 'Not set'}
+                            <br>Should be in validation: ${shouldBeInVal ? '✅ YES' : '❌ NO'}
+                            ${shouldBeInVal ? '<br><strong>❌ Missing from validation!</strong>' : '<br>✅ Correctly handled'}
+                        </div>
+                    `;
+                });
+                document.getElementById('reviewed-items').innerHTML = reviewedHtml;
+            }
+            
+            // Missing items
+            if (missingFromValidation.length > 0) {
+                let missingHtml = `
+                    <div class="error">
+                        <h3>❌ Masalah Ditemukan!</h3>
+                        <p><strong>${missingFromValidation.length} items</strong> yang sudah di-review tidak masuk ke validasi:</p>
+                    </div>
+                `;
+                
+                missingFromValidation.forEach((sub, i) => {
+                    missingHtml += `
+                        <div class="item-card missing-item">
+                            <strong>${i+1}. ${sub.judul}</strong> (ID: ${sub.id})
+                            <br>Current Stage: ${sub.workflowStage} (should be 'validation')
+                            <br>Problem: ${getDiagnostic(sub)}
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('missing-items').innerHTML = missingHtml;
+            } else {
+                document.getElementById('missing-items').innerHTML = `
+                    <div class="success">
+                        <h3>✅ Semua Baik!</h3>
+                        <p>Semua reviewed items sudah masuk ke validasi dengan benar.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function getDiagnostic(sub) {
+            const issues = [];
+            if (sub.workflowStage !== "validation") issues.push(`Stage = ${sub.workflowStage}`);
+            if (sub.isOutputValidated) issues.push("Already validated");
+            if (!sub.isConfirmed) issues.push("Not confirmed");
+            return issues.length > 0 ? issues.join(", ") : "Unknown issue";
+        }
+
+        function fixWorkflowStages() {
+            const { missingFromValidation } = analysisData;
+            if (!missingFromValidation || missingFromValidation.length === 0) {
+                showFixResult('<div class="success">✅ Tidak ada workflow stage yang perlu diperbaiki!</div>');
+                return;
+            }
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            let fixedCount = 0;
+            
+            const updatedSubmissions = submissions.map(sub => {
+                const missingItem = missingFromValidation.find(missing => missing.id === sub.id);
+                if (missingItem) {
+                    fixedCount++;
+                    return {
+                        ...sub,
+                        workflowStage: "validation",
+                        lastModified: new Date().toISOString()
+                    };
+                }
+                return sub;
+            });
+            
+            localStorage.setItem('submissions', JSON.stringify(updatedSubmissions));
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Workflow stages berhasil diperbaiki!<br>
+                    Diperbaiki ${fixedCount} items menjadi stage 'validation'.
+                </div>
+            `);
+            
+            // Re-analyze after fix
+            setTimeout(() => {
+                analyzeReviewToValidation();
+                syncValidationData();
+            }, 500);
+        }
+
+        function syncValidationData() {
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            
+            // Find all items that should be in validation
+            const validationItems = submissions.filter(sub => {
+                if (sub.workflowStage !== "validation") return false;
+                if (sub.isOutputValidated) return false;
+                if (sub.isConfirmed === false) return false;
+                
+                // Must have approved content items
+                const contentItems = sub.contentItems || [];
+                const hasApproved = contentItems.some(item => item.status === "approved");
+                return hasApproved;
+            });
+            
+            localStorage.setItem('validations_cache', JSON.stringify(validationItems));
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Validation cache berhasil di-sync!<br>
+                    Disinkronkan ${validationItems.length} items ke validation cache.
+                    <br><br>
+                    <strong>Selanjutnya:</strong> Refresh halaman validasi untuk melihat semua ${validationItems.length} items.
+                </div>
+            `);
+        }
+
+        function forceAddToValidation() {
+            const { shouldBeInValidation } = analysisData;
+            if (!shouldBeInValidation || shouldBeInValidation.length === 0) {
+                showFixResult('<div class="success">✅ Tidak ada items yang perlu ditambahkan!</div>');
+                return;
+            }
+            
+            // Force update workflow stage and sync
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            
+            const updatedSubmissions = submissions.map(sub => {
+                const shouldBeInVal = shouldBeInValidation.find(item => item.id === sub.id);
+                if (shouldBeInVal) {
+                    return {
+                        ...sub,
+                        workflowStage: "validation",
+                        isOutputValidated: false,
+                        lastModified: new Date().toISOString()
+                    };
+                }
+                return sub;
+            });
+            
+            localStorage.setItem('submissions', JSON.stringify(updatedSubmissions));
+            
+            // Update validation cache
+            const validationItems = shouldBeInValidation.map(sub => ({
+                ...sub,
+                workflowStage: "validation",
+                isOutputValidated: false
+            }));
+            
+            localStorage.setItem('validations_cache', JSON.stringify(validationItems));
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Berhasil memaksa ${shouldBeInValidation.length} items masuk ke validasi!<br>
+                    Semua reviewed items sekarang ada di validasi.
+                    <br><br>
+                    <strong>Selanjutnya:</strong> Refresh halaman validasi.
+                </div>
+            `);
+        }
+
+        function verifyFix() {
+            analyzeReviewToValidation();
+            
+            const { reviewedItems, shouldBeInValidation, inValidationCache, missingFromValidation } = analysisData;
+            
+            let verificationHtml = '<h3>🔍 Hasil Verifikasi</h3>';
+            
+            if (missingFromValidation.length === 0) {
+                verificationHtml += `
+                    <div class="success">
+                        <h4>✅ PERBAIKAN BERHASIL!</h4>
+                        <p>Semua ${shouldBeInValidation.length} reviewed items sudah masuk ke validasi.</p>
+                        <p>Validation cache: ${inValidationCache} items</p>
+                        <p><strong>Silakan refresh halaman validasi untuk melihat semua items.</strong></p>
+                    </div>
+                `;
+            } else {
+                verificationHtml += `
+                    <div class="error">
+                        <h4>❌ Masih ada masalah</h4>
+                        <p>Masih ada ${missingFromValidation.length} items yang belum masuk ke validasi.</p>
+                        <p>Silakan coba perbaikan lagi atau hubungi developer.</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('verification-results').innerHTML = verificationHtml;
+        }
+
+        function showFixResult(html) {
+            document.getElementById('fix-results').innerHTML = html;
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            analyzeReviewToValidation();
+        });
+    </script>
+</body>
+</html>

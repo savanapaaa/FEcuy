@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Workflow Transition - FEcuy</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .status-pending { color: #f39c12; }
+        .status-approved { color: #27ae60; }
+        .status-rejected { color: #e74c3c; }
+        .stage-review { background-color: #e3f2fd; }
+        .stage-validation { background-color: #fff3e0; }
+        .stage-completed { background-color: #e8f5e8; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .fix-button {
+            background-color: #28a745;
+        }
+        .fix-button:hover {
+            background-color: #1e7e34;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .item-card {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Debug Workflow Transition - FEcuy</h1>
+        <p>Tool ini membantu mendiagnosis masalah transisi workflow dari Review ke Validasi.</p>
+        
+        <div class="debug-section">
+            <h3>📊 Analisis Data</h3>
+            <button onclick="analyzeData()">Analisis Data LocalStorage</button>
+            <button onclick="analyzeWorkflow()">Analisis Workflow Stages</button>
+            <button onclick="checkValidationReadiness()">Cek Kesiapan Validasi</button>
+            <div id="analysis-results"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>🔧 Perbaikan Otomatis</h3>
+            <button onclick="fixWorkflowStages()" class="fix-button">Perbaiki Workflow Stages</button>
+            <button onclick="syncValidationData()" class="fix-button">Sync Data Validasi</button>
+            <button onclick="clearCacheAndReload()" style="background-color: #dc3545;">Reset Cache & Reload</button>
+            <div id="fix-results"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>📋 Detail Submissions</h3>
+            <div id="submissions-detail"></div>
+        </div>
+
+        <div class="debug-section">
+            <h3>🔍 Log Console</h3>
+            <pre id="console-log"></pre>
+        </div>
+    </div>
+
+    <script>
+        let logOutput = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logOutput.push(logEntry);
+            
+            const consoleElement = document.getElementById('console-log');
+            consoleElement.textContent = logOutput.slice(-20).join('\n');
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+            
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.log(message);
+            }
+        }
+
+        function analyzeData() {
+            log('🔍 Memulai analisis data localStorage...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            const validationCache = JSON.parse(localStorage.getItem('validations_cache') || '[]');
+            
+            log(`📊 Total submissions: ${submissions.length}`);
+            log(`📊 Validation cache: ${validationCache.length}`);
+            
+            const analysisHtml = `
+                <div class="warning">
+                    <strong>Ringkasan Data:</strong><br>
+                    • Total Submissions: ${submissions.length}<br>
+                    • Validation Cache: ${validationCache.length}<br>
+                    • Data dimuat dari localStorage pada: ${new Date().toLocaleString()}
+                </div>
+                <h4>Breakdown by Workflow Stage:</h4>
+                ${analyzeWorkflowStages(submissions)}
+            `;
+            
+            document.getElementById('analysis-results').innerHTML = analysisHtml;
+        }
+
+        function analyzeWorkflowStages(submissions) {
+            const stages = {
+                submitted: 0,
+                review: 0,
+                validation: 0,
+                completed: 0,
+                undefined: 0
+            };
+            
+            submissions.forEach(sub => {
+                const stage = sub.workflowStage || 'undefined';
+                stages[stage] = (stages[stage] || 0) + 1;
+            });
+            
+            let html = '<ul>';
+            Object.entries(stages).forEach(([stage, count]) => {
+                if (count > 0) {
+                    html += `<li class="stage-${stage}"><strong>${stage}:</strong> ${count} items</li>`;
+                }
+            });
+            html += '</ul>';
+            
+            log(`📈 Workflow stages: ${JSON.stringify(stages)}`);
+            return html;
+        }
+
+        function analyzeWorkflow() {
+            log('🔄 Menganalisis workflow logic...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            let html = '<h4>Analisis Workflow per Item:</h4>';
+            
+            submissions.forEach((sub, index) => {
+                const shouldStage = calculateWorkflowStage(sub);
+                const currentStage = sub.workflowStage || 'undefined';
+                const isCorrect = shouldStage === currentStage;
+                
+                html += `
+                    <div class="item-card ${isCorrect ? '' : 'warning'}">
+                        <strong>${index + 1}. ${sub.judul}</strong><br>
+                        Current Stage: <span class="stage-${currentStage}">${currentStage}</span><br>
+                        Should be: <span class="stage-${shouldStage}">${shouldStage}</span><br>
+                        ${isCorrect ? '✅ Correct' : '❌ Needs fix'}<br>
+                        ${getItemDetails(sub)}
+                    </div>
+                `;
+                
+                if (!isCorrect) {
+                    log(`❌ Item "${sub.judul}" should be "${shouldStage}" but is "${currentStage}"`);
+                }
+            });
+            
+            document.getElementById('analysis-results').innerHTML = html;
+        }
+
+        function calculateWorkflowStage(submission) {
+            if (!submission.isConfirmed) return "submitted";
+
+            const contentItems = submission.contentItems || [];
+            if (contentItems.length === 0) return "review";
+
+            const allReviewed = contentItems.every(
+                item => item.status === "approved" || item.status === "rejected"
+            );
+            if (!allReviewed) return "review";
+
+            const hasApprovedItems = contentItems.some(item => item.status === "approved");
+            if (!hasApprovedItems) return "completed";
+
+            const approvedItems = contentItems.filter(item => item.status === "approved");
+            const allValidated = approvedItems.every(item => item.isTayang !== undefined);
+
+            if (!allValidated) return "validation";
+            return "completed";
+        }
+
+        function getItemDetails(sub) {
+            const contentItems = sub.contentItems || [];
+            let details = `Content Items: ${contentItems.length}<br>`;
+            
+            if (contentItems.length > 0) {
+                const statusCounts = {
+                    pending: contentItems.filter(item => !item.status || item.status === 'pending').length,
+                    approved: contentItems.filter(item => item.status === 'approved').length,
+                    rejected: contentItems.filter(item => item.status === 'rejected').length
+                };
+                
+                details += `Status: ${statusCounts.pending} pending, ${statusCounts.approved} approved, ${statusCounts.rejected} rejected<br>`;
+                
+                const validatedCount = contentItems.filter(item => item.isTayang !== undefined).length;
+                details += `Validated: ${validatedCount}/${contentItems.length}<br>`;
+            }
+            
+            details += `Confirmed: ${sub.isConfirmed ? 'Yes' : 'No'}<br>`;
+            details += `Output Validated: ${sub.isOutputValidated ? 'Yes' : 'No'}`;
+            
+            return details;
+        }
+
+        function checkValidationReadiness() {
+            log('🎯 Mengecek kesiapan validasi...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            const readyForValidation = submissions.filter(sub => {
+                const calculatedStage = calculateWorkflowStage(sub);
+                return calculatedStage === 'validation' && !sub.isOutputValidated;
+            });
+            
+            let html = `<div class="success">
+                <strong>Items Ready for Validation: ${readyForValidation.length}</strong>
+            </div>`;
+            
+            if (readyForValidation.length > 0) {
+                html += '<h4>Items yang siap untuk validasi:</h4>';
+                readyForValidation.forEach((sub, index) => {
+                    html += `
+                        <div class="item-card stage-validation">
+                            <strong>${index + 1}. ${sub.judul}</strong><br>
+                            ID: ${sub.id}<br>
+                            No. Comtab: ${sub.noComtab}<br>
+                            Review Date: ${sub.tanggalReview || 'Not set'}<br>
+                            ${getItemDetails(sub)}
+                        </div>
+                    `;
+                });
+                
+                log(`✅ Found ${readyForValidation.length} items ready for validation`);
+            } else {
+                html += '<div class="warning">Tidak ada item yang siap untuk validasi.</div>';
+                log('⚠️ No items ready for validation found');
+            }
+            
+            document.getElementById('analysis-results').innerHTML = html;
+        }
+
+        function fixWorkflowStages() {
+            log('🔧 Memulai perbaikan workflow stages...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            let fixedCount = 0;
+            
+            const fixedSubmissions = submissions.map(sub => {
+                const currentStage = sub.workflowStage;
+                const correctStage = calculateWorkflowStage(sub);
+                
+                if (currentStage !== correctStage) {
+                    fixedCount++;
+                    log(`🔧 Fixed "${sub.judul}": ${currentStage} → ${correctStage}`);
+                    return {
+                        ...sub,
+                        workflowStage: correctStage,
+                        lastModified: new Date().toISOString()
+                    };
+                }
+                
+                return sub;
+            });
+            
+            localStorage.setItem('submissions', JSON.stringify(fixedSubmissions));
+            
+            const resultHtml = `
+                <div class="success">
+                    ✅ Perbaikan selesai!<br>
+                    Fixed ${fixedCount} items out of ${submissions.length} total.
+                </div>
+            `;
+            
+            document.getElementById('fix-results').innerHTML = resultHtml;
+            log(`✅ Fixed ${fixedCount} workflow stages`);
+        }
+
+        function syncValidationData() {
+            log('🔄 Sinkronisasi data validasi...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            const validationItems = submissions.filter(sub => {
+                const stage = calculateWorkflowStage(sub);
+                return stage === 'validation' && !sub.isOutputValidated;
+            });
+            
+            localStorage.setItem('validations_cache', JSON.stringify(validationItems));
+            
+            const resultHtml = `
+                <div class="success">
+                    ✅ Validasi cache diperbarui!<br>
+                    Disinkronkan ${validationItems.length} items untuk validasi.
+                </div>
+            `;
+            
+            document.getElementById('fix-results').innerHTML = resultHtml;
+            log(`✅ Synced ${validationItems.length} items to validation cache`);
+        }
+
+        function clearCacheAndReload() {
+            if (confirm('Apakah Anda yakin ingin menghapus semua cache dan reload halaman?')) {
+                log('🗑️ Menghapus cache...');
+                localStorage.removeItem('submissions');
+                localStorage.removeItem('validations_cache');
+                localStorage.removeItem('reviews_cache');
+                
+                log('✅ Cache dihapus. Reloading...');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        }
+
+        // Auto-run analysis on page load
+        window.addEventListener('load', () => {
+            log('🚀 Debug tool loaded');
+            analyzeData();
+        });
+    </script>
+</body>
+</html>

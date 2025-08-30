@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Fix Data Validation - FEcuy</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .issue {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .fix-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .fix-button:hover {
+            background-color: #1e7e34;
+        }
+        .danger-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        .danger-button:hover {
+            background-color: #b02a37;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .counter {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Quick Fix Data Validation</h1>
+        <p>Tool untuk memperbaiki inkonsistensi data antara Dashboard dan halaman Validasi</p>
+        
+        <div class="info">
+            <h3>📊 Current Status</h3>
+            <div id="current-status">Loading...</div>
+        </div>
+
+        <div id="issue-detected" class="issue" style="display: none;">
+            <h3>⚠️ Issue Detected</h3>
+            <p>Dashboard menampilkan <span id="dashboard-count" class="counter">0</span> pending validation, 
+            tapi halaman validasi menampilkan <span id="validation-count" class="counter">0</span> items.</p>
+            <p><strong>Penyebab:</strong> Inkonsistensi filter antara dashboard dan halaman validasi.</p>
+        </div>
+
+        <div class="info">
+            <h3>🔧 Available Fixes</h3>
+            <button onclick="fixValidationCache()" class="fix-button">
+                🔄 Sync Validation Cache
+            </button>
+            <button onclick="fixWorkflowStages()" class="fix-button">
+                📝 Fix Workflow Stages
+            </button>
+            <button onclick="refreshPageData()" class="fix-button">
+                🔃 Refresh All Data
+            </button>
+            <button onclick="resetAllData()" class="danger-button">
+                🗑️ Reset All Data
+            </button>
+        </div>
+
+        <div id="fix-results"></div>
+
+        <div class="info">
+            <h3>📋 Data Analysis</h3>
+            <div id="data-analysis"></div>
+        </div>
+
+        <div class="info">
+            <h3>🔍 Console Log</h3>
+            <pre id="console-output"></pre>
+        </div>
+    </div>
+
+    <script>
+        let logLines = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logLines.push(logEntry);
+            
+            const output = document.getElementById('console-output');
+            output.textContent = logLines.slice(-15).join('\n');
+            output.scrollTop = output.scrollHeight;
+            
+            console.log(message);
+        }
+
+        function checkDataConsistency() {
+            log('🔍 Checking data consistency...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            const validationCache = JSON.parse(localStorage.getItem('validations_cache') || '[]');
+            
+            // Dashboard logic (strict filter)
+            const dashboardCount = submissions.filter(s => 
+                s.workflowStage === "validation" && 
+                !s.isOutputValidated && 
+                s.isConfirmed !== false
+            ).length;
+            
+            // Simple validation stage count
+            const simpleCount = submissions.filter(s => s.workflowStage === "validation").length;
+            
+            // Current validation cache count
+            const cacheCount = validationCache.length;
+            
+            log(`📊 Data counts: Dashboard=${dashboardCount}, Simple=${simpleCount}, Cache=${cacheCount}`);
+            
+            // Update UI
+            document.getElementById('dashboard-count').textContent = dashboardCount;
+            document.getElementById('validation-count').textContent = cacheCount;
+            
+            const statusDiv = document.getElementById('current-status');
+            statusDiv.innerHTML = `
+                <p><strong>Submissions in localStorage:</strong> <span class="counter">${submissions.length}</span></p>
+                <p><strong>Workflow stage 'validation':</strong> <span class="counter">${simpleCount}</span></p>
+                <p><strong>Dashboard count (filtered):</strong> <span class="counter">${dashboardCount}</span></p>
+                <p><strong>Validation cache:</strong> <span class="counter">${cacheCount}</span></p>
+            `;
+            
+            // Show issue if counts don't match
+            if (dashboardCount !== cacheCount) {
+                document.getElementById('issue-detected').style.display = 'block';
+                log('❌ Inconsistency detected!');
+            } else {
+                document.getElementById('issue-detected').style.display = 'none';
+                log('✅ Data is consistent!');
+            }
+            
+            return { dashboardCount, simpleCount, cacheCount, submissions };
+        }
+
+        function fixValidationCache() {
+            log('🔄 Fixing validation cache...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            
+            // Apply the same filter logic as dashboard
+            const validationItems = submissions.filter(s => 
+                s.workflowStage === "validation" && 
+                !s.isOutputValidated && 
+                s.isConfirmed !== false
+            );
+            
+            // Update cache
+            localStorage.setItem('validations_cache', JSON.stringify(validationItems));
+            
+            log(`✅ Updated validation cache with ${validationItems.length} items`);
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Validation cache berhasil diperbaiki!<br>
+                    Cache diperbarui dengan ${validationItems.length} items yang memenuhi kriteria.
+                    <br><br>
+                    <strong>Selanjutnya:</strong> Refresh halaman validasi untuk melihat perubahan.
+                </div>
+            `);
+            
+            // Recheck consistency
+            setTimeout(checkDataConsistency, 500);
+        }
+
+        function fixWorkflowStages() {
+            log('📝 Fixing workflow stages...');
+            
+            const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
+            let fixedCount = 0;
+            
+            const fixedSubmissions = submissions.map(sub => {
+                const correctStage = calculateWorkflowStage(sub);
+                
+                if (sub.workflowStage !== correctStage) {
+                    fixedCount++;
+                    log(`🔧 Fixed "${sub.judul}": ${sub.workflowStage} → ${correctStage}`);
+                    return {
+                        ...sub,
+                        workflowStage: correctStage,
+                        lastModified: new Date().toISOString()
+                    };
+                }
+                
+                return sub;
+            });
+            
+            localStorage.setItem('submissions', JSON.stringify(fixedSubmissions));
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Workflow stages berhasil diperbaiki!<br>
+                    Diperbaiki ${fixedCount} dari ${submissions.length} total submissions.
+                </div>
+            `);
+            
+            log(`✅ Fixed ${fixedCount} workflow stages`);
+            
+            // Also update validation cache
+            fixValidationCache();
+        }
+
+        function calculateWorkflowStage(submission) {
+            if (!submission.isConfirmed) return "submitted";
+
+            const contentItems = submission.contentItems || [];
+            if (contentItems.length === 0) return "review";
+
+            const allReviewed = contentItems.every(
+                item => item.status === "approved" || item.status === "rejected"
+            );
+            if (!allReviewed) return "review";
+
+            const hasApprovedItems = contentItems.some(item => item.status === "approved");
+            if (!hasApprovedItems) return "completed";
+
+            const approvedItems = contentItems.filter(item => item.status === "approved");
+            const allValidated = approvedItems.every(item => item.isTayang !== undefined);
+
+            if (!allValidated) return "validation";
+            return "completed";
+        }
+
+        function refreshPageData() {
+            log('🔃 Refreshing all page data...');
+            
+            // Clear relevant caches
+            localStorage.removeItem('validations_cache');
+            localStorage.removeItem('reviews_cache');
+            
+            showFixResult(`
+                <div class="success">
+                    ✅ Cache dibersihkan!<br>
+                    Silakan refresh browser untuk memuat ulang data dari server.
+                    <br><br>
+                    <button onclick="window.location.reload()" class="fix-button">🔄 Refresh Browser</button>
+                </div>
+            `);
+            
+            log('✅ Caches cleared. Manual browser refresh needed.');
+        }
+
+        function resetAllData() {
+            if (confirm('⚠️ PERINGATAN: Ini akan menghapus SEMUA data localStorage. Yakin?')) {
+                log('🗑️ Resetting all localStorage data...');
+                
+                localStorage.clear();
+                
+                showFixResult(`
+                    <div class="success">
+                        ✅ Semua data localStorage berhasil dihapus!<br>
+                        Aplikasi akan memuat data fresh dari server.
+                        <br><br>
+                        <button onclick="window.location.reload()" class="fix-button">🔄 Refresh Browser</button>
+                    </div>
+                `);
+                
+                log('✅ All localStorage cleared. Browser refresh needed.');
+            }
+        }
+
+        function showFixResult(html) {
+            document.getElementById('fix-results').innerHTML = html;
+        }
+
+        function analyzeData() {
+            const { submissions } = checkDataConsistency();
+            
+            let analysisHtml = '<h4>Detailed Analysis:</h4>';
+            
+            // Workflow breakdown
+            const workflowBreakdown = submissions.reduce((acc, sub) => {
+                const stage = sub.workflowStage || 'undefined';
+                acc[stage] = (acc[stage] || 0) + 1;
+                return acc;
+            }, {});
+            
+            analysisHtml += '<h5>Workflow Stage Breakdown:</h5><ul>';
+            Object.entries(workflowBreakdown).forEach(([stage, count]) => {
+                analysisHtml += `<li><strong>${stage}:</strong> ${count} items</li>`;
+            });
+            analysisHtml += '</ul>';
+            
+            // Validation items analysis
+            const validationItems = submissions.filter(s => s.workflowStage === "validation");
+            if (validationItems.length > 0) {
+                analysisHtml += '<h5>Items with Validation Stage:</h5>';
+                validationItems.forEach((sub, i) => {
+                    const passesFilter = !sub.isOutputValidated && sub.isConfirmed !== false;
+                    analysisHtml += `
+                        <p>${i+1}. <strong>${sub.judul}</strong> (ID: ${sub.id})
+                        <br>└─ Passes filter: ${passesFilter ? '✅' : '❌'} 
+                        (isOutputValidated: ${sub.isOutputValidated}, isConfirmed: ${sub.isConfirmed})
+                        </p>
+                    `;
+                });
+            }
+            
+            document.getElementById('data-analysis').innerHTML = analysisHtml;
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('🚀 Quick Fix tool loaded');
+            checkDataConsistency();
+            analyzeData();
+        });
+
+        // Auto-refresh check every 5 seconds
+        setInterval(() => {
+            checkDataConsistency();
+        }, 5000);
+    </script>
+</body>
+</html>
