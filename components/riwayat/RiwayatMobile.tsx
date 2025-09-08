@@ -79,6 +79,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import apiClient from "@/lib/api-client"
 
 // Local formatDate function
 const formatDate = (date: Date | string | undefined): string => {
@@ -530,6 +531,78 @@ export default function RiwayatMobile({ onEdit }: RiwayatMobileProps) {
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set())
   const [isValidatingEdit, setIsValidatingEdit] = useState(false)
   const { toast } = useToast()
+
+  // Helper function to transform API data
+  const transformSubmissionFromAPI = (item: any): Submission => {
+    return {
+      id: item.id,
+      noComtab: `COM-${item.id.toString().padStart(4, '0')}`,
+      pin: "0000",
+      tema: item.description?.toLowerCase().includes("ekonomi") ? "ekonomi" 
+            : item.description?.toLowerCase().includes("lingkungan") ? "lingkungan" 
+            : "sosial",
+      judul: item.title || "Tidak ada judul",
+      jenisMedia: item.type || "content_creation",
+      mediaPemerintah: [],
+      mediaMassa: [],
+      jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
+      tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
+      petugasPelaksana: item.user?.name || "Tidak diketahui",
+      supervisor: item.description?.split(" - ")[1] || "Tidak diketahui",
+      durasi: "",
+      jumlahProduksi: item.content_items?.length?.toString() || "0",
+      tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
+      lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+      uploadedBuktiMengetahui: undefined,
+      isConfirmed: item.is_confirmed || false,
+      tanggalKonfirmasi: item.submitted_at || undefined,
+      workflowStage: (() => {
+        const stage = item.workflow_stage?.toLowerCase() || "submitted"
+        if (stage === "pending") return "submitted"
+        if (stage === "review") return "review"
+        if (stage === "validation") return "validation" 
+        if (stage === "completed" || stage === "published") return "completed"
+        return "submitted"
+      })() as "submitted" | "review" | "validation" | "completed",
+      isOutputValidated: item.status === "completed" || item.status === "published",
+      tanggalValidasiOutput: item.validated_at || undefined,
+      contentItems: item.content_items?.map((ci: any, index: number) => ({
+        id: ci.id?.toString() || `item-${index}`,
+        nama: ci.title || `Konten ${index + 1}`,
+        jenisKonten: ci.type || "text",
+        mediaPemerintah: [],
+        mediaMassa: [],
+        nomorSurat: "",
+        narasiText: ci.content || "",
+        sourceNarasi: [],
+        tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
+        tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
+        tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
+        buktiUpload: ci.file_url ? {
+          name: ci.original_filename || "file",
+          size: ci.file_size || 0,
+          type: ci.mime_type || "application/octet-stream",
+          lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+          url: ci.file_url
+        } : undefined,
+        keterangan: ci.content || "",
+        status: item.status === "completed" || item.status === "published" ? "approved" 
+                : item.status === "rejected" ? "rejected" 
+                : "pending",
+        alasanPenolakan: item.notes || "",
+        isTayang: ci.is_published || false,
+        tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
+        hasilProdukFile: ci.file_url ? {
+          name: ci.original_filename || "file",
+          size: ci.file_size || 0,
+          type: ci.mime_type || "application/octet-stream", 
+          lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+          url: ci.file_url
+        } : undefined,
+        hasilProdukLink: ci.file_url || "",
+      })) || []
+    }
+  }
 
   useEffect(() => {
     const loadSubmissions = async () => {

@@ -72,6 +72,7 @@ import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { loadSubmissionsFromStorage } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import apiClient from "@/lib/api-client"
 
 // Local formatDate function
 const formatDate = (date: Date | string | undefined): string => {
@@ -346,96 +347,32 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
     const loadSubmissions = async () => {
       setIsLoading(true)
       try {
-        console.log("🔄 Loading submissions from server...")
+        console.log("🔄 Loading submissions from API server...")
         
-        // Try to load from API first
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        })
+        // Use API client for authenticated requests
+        const apiData = await apiClient.getSubmissions()
+        console.log("✅ Submissions loaded from server:", apiData)
         
-        if (response.ok) {
-          const apiData = await response.json()
-          console.log("✅ Submissions loaded from server:", apiData)
+        if (apiData.success && apiData.data) {
+          // Transform API data to match our Submission interface
+          const transformedSubmissions = Array.isArray(apiData.data) 
+            ? apiData.data.map((item: any) => transformSubmissionFromAPI(item))
+            : apiData.data.data 
+              ? apiData.data.data.map((item: any) => transformSubmissionFromAPI(item))
+              : []
           
-          if (apiData.success && apiData.data?.data) {
-            // Transform API data to match our Submission interface
-            const transformedSubmissions = apiData.data.data.map((item: any) => {
-              const submission: Submission = {
-                id: item.id,
-                noComtab: `COM-${item.id.toString().padStart(4, '0')}`, // Generate noComtab from ID
-                pin: "0000", // Default PIN, should be generated properly
-                tema: extractThemeFromDescription(item.description) || "sosial",
-                judul: item.title || "Tidak ada judul",
-                jenisMedia: item.type || "content_creation",
-                mediaPemerintah: [], // Will be filled from metadata if available
-                mediaMassa: [], // Will be filled from metadata if available
-                jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
-                tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
-                petugasPelaksana: item.user?.name || "Tidak diketahui",
-                supervisor: extractSupervisorFromDescription(item.description) || "Tidak diketahui",
-                durasi: extractDurationFromMetadata(item.metadata) || "",
-                jumlahProduksi: item.content_items?.length?.toString() || "0",
-                tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
-                lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
-                uploadedBuktiMengetahui: undefined, // Will be filled from attachments if available
-                isConfirmed: item.is_confirmed || false,
-                tanggalKonfirmasi: item.submitted_at || undefined,
-                workflowStage: mapApiWorkflowStage(item.workflow_stage) as "submitted" | "review" | "validation" | "completed",
-                isOutputValidated: item.status === "completed" || item.status === "published",
-                tanggalValidasiOutput: item.validated_at || undefined,
-                contentItems: item.content_items?.map((ci: any, index: number) => ({
-                  id: ci.id?.toString() || `item-${index}`,
-                  nama: ci.title || `Konten ${index + 1}`,
-                  jenisKonten: ci.type || "text",
-                  mediaPemerintah: [],
-                  mediaMassa: [],
-                  nomorSurat: "",
-                  narasiText: ci.content || "",
-                  sourceNarasi: [],
-                  tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
-                  tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
-                  tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
-                  buktiUpload: ci.file_url ? {
-                    name: ci.original_filename || "file",
-                    size: ci.file_size || 0,
-                    type: ci.mime_type || "application/octet-stream",
-                    lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
-                    url: ci.file_url
-                  } : undefined,
-                  keterangan: ci.content || "",
-                  status: mapContentItemStatus(item.status) as "pending" | "approved" | "rejected",
-                  alasanPenolakan: item.notes || "",
-                  isTayang: ci.is_published || false,
-                  tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
-                  hasilProdukFile: ci.file_url ? {
-                    name: ci.original_filename || "file",
-                    size: ci.file_size || 0,
-                    type: ci.mime_type || "application/octet-stream", 
-                    lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
-                    url: ci.file_url
-                  } : undefined,
-                  hasilProdukLink: ci.file_url || "",
-                })) || []
-              }
-              return submission
-            })
-            
-            setSubmissions(transformedSubmissions)
-            
-            // Update cache for offline use
-            if (typeof window !== "undefined") {
-              localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
-            }
-            
-            showToastMessage("Data berhasil dimuat dari server!", "success")
-            return
+          setSubmissions(transformedSubmissions)
+          
+          // Update cache for offline use
+          if (typeof window !== "undefined") {
+            localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
           }
+          
+          showToastMessage("Data berhasil dimuat dari server!", "success")
+          return
         }
         
-        throw new Error("Server not available")
+        throw new Error("Invalid API response format")
         
       } catch (error) {
         console.error("❌ Failed to load from server:", error)
@@ -476,6 +413,66 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
   }
 
   // Helper functions for API data transformation
+  const transformSubmissionFromAPI = (item: any): Submission => {
+    return {
+      id: item.id,
+      noComtab: `COM-${item.id.toString().padStart(4, '0')}`, // Generate noComtab from ID
+      pin: "0000", // Default PIN, should be generated properly
+      tema: extractThemeFromDescription(item.description) || "sosial",
+      judul: item.title || "Tidak ada judul",
+      jenisMedia: item.type || "content_creation",
+      mediaPemerintah: [], // Will be filled from metadata if available
+      mediaMassa: [], // Will be filled from metadata if available
+      jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
+      tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
+      petugasPelaksana: item.user?.name || "Tidak diketahui",
+      supervisor: extractSupervisorFromDescription(item.description) || "Tidak diketahui",
+      durasi: extractDurationFromMetadata(item.metadata) || "",
+      jumlahProduksi: item.content_items?.length?.toString() || "0",
+      tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
+      lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
+      uploadedBuktiMengetahui: undefined, // Will be filled from attachments if available
+      isConfirmed: item.is_confirmed || false,
+      tanggalKonfirmasi: item.submitted_at || undefined,
+      workflowStage: mapApiWorkflowStage(item.workflow_stage) as "submitted" | "review" | "validation" | "completed",
+      isOutputValidated: item.status === "completed" || item.status === "published",
+      tanggalValidasiOutput: item.validated_at || undefined,
+      contentItems: item.content_items?.map((ci: any, index: number) => ({
+        id: ci.id?.toString() || `item-${index}`,
+        nama: ci.title || `Konten ${index + 1}`,
+        jenisKonten: ci.type || "text",
+        mediaPemerintah: [],
+        mediaMassa: [],
+        nomorSurat: "",
+        narasiText: ci.content || "",
+        sourceNarasi: [],
+        tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
+        tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
+        tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
+        buktiUpload: ci.file_url ? {
+          name: ci.original_filename || "file",
+          size: ci.file_size || 0,
+          type: ci.mime_type || "application/octet-stream",
+          lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+          url: ci.file_url
+        } : undefined,
+        keterangan: ci.content || "",
+        status: mapContentItemStatus(item.status) as "pending" | "approved" | "rejected",
+        alasanPenolakan: item.notes || "",
+        isTayang: ci.is_published || false,
+        tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
+        hasilProdukFile: ci.file_url ? {
+          name: ci.original_filename || "file",
+          size: ci.file_size || 0,
+          type: ci.mime_type || "application/octet-stream", 
+          lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
+          url: ci.file_url
+        } : undefined,
+        hasilProdukLink: ci.file_url || "",
+      })) || []
+    }
+  }
+
   const extractThemeFromDescription = (description: string): string => {
     if (!description) return "sosial"
     const desc = description.toLowerCase()
@@ -686,95 +683,32 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
   const refreshData = async () => {
     setIsLoading(true)
     try {
-      console.log("🔄 Refreshing submissions from server...")
+      console.log("🔄 Refreshing submissions from API server...")
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/submissions`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      })
+      // Use API client for authenticated requests
+      const apiData = await apiClient.getSubmissions()
+      console.log("✅ Submissions refreshed from server:", apiData)
       
-      if (response.ok) {
-        const apiData = await response.json()
-        console.log("✅ Submissions refreshed from server")
+      if (apiData.success && apiData.data) {
+        // Transform API data to match our Submission interface
+        const transformedSubmissions = Array.isArray(apiData.data) 
+          ? apiData.data.map((item: any) => transformSubmissionFromAPI(item))
+          : apiData.data.data 
+            ? apiData.data.data.map((item: any) => transformSubmissionFromAPI(item))
+            : []
         
-        if (apiData.success && apiData.data?.data) {
-          // Transform API data to match our Submission interface (same logic as useEffect)
-          const transformedSubmissions = apiData.data.data.map((item: any) => {
-            const submission: Submission = {
-              id: item.id,
-              noComtab: `COM-${item.id.toString().padStart(4, '0')}`,
-              pin: "0000",
-              tema: extractThemeFromDescription(item.description) || "sosial",
-              judul: item.title || "Tidak ada judul",
-              jenisMedia: item.type || "content_creation",
-              mediaPemerintah: [],
-              mediaMassa: [],
-              jenisKonten: item.content_items?.map((ci: any) => ci.type) || [],
-              tanggalOrder: item.deadline ? new Date(item.deadline) : undefined,
-              petugasPelaksana: item.user?.name || "Tidak diketahui",
-              supervisor: extractSupervisorFromDescription(item.description) || "Tidak diketahui",
-              durasi: extractDurationFromMetadata(item.metadata) || "",
-              jumlahProduksi: item.content_items?.length?.toString() || "0",
-              tanggalSubmit: item.created_at ? new Date(item.created_at) : new Date(),
-              lastModified: item.updated_at ? new Date(item.updated_at) : new Date(),
-              uploadedBuktiMengetahui: undefined,
-              isConfirmed: item.is_confirmed || false,
-              tanggalKonfirmasi: item.submitted_at || undefined,
-              workflowStage: mapApiWorkflowStage(item.workflow_stage) as "submitted" | "review" | "validation" | "completed",
-              isOutputValidated: item.status === "completed" || item.status === "published",
-              tanggalValidasiOutput: item.validated_at || undefined,
-              contentItems: item.content_items?.map((ci: any, index: number) => ({
-                id: ci.id?.toString() || `item-${index}`,
-                nama: ci.title || `Konten ${index + 1}`,
-                jenisKonten: ci.type || "text",
-                mediaPemerintah: [],
-                mediaMassa: [],
-                nomorSurat: "",
-                narasiText: ci.content || "",
-                sourceNarasi: [],
-                tanggalOrderMasuk: item.created_at ? new Date(item.created_at) : new Date(),
-                tanggalJadi: ci.updated_at ? new Date(ci.updated_at) : new Date(),
-                tanggalTayang: ci.is_published ? new Date(ci.updated_at) : undefined,
-                buktiUpload: ci.file_url ? {
-                  name: ci.original_filename || "file",
-                  size: ci.file_size || 0,
-                  type: ci.mime_type || "application/octet-stream",
-                  lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
-                  url: ci.file_url
-                } : undefined,
-                keterangan: ci.content || "",
-                status: mapContentItemStatus(item.status) as "pending" | "approved" | "rejected",
-                alasanPenolakan: item.notes || "",
-                isTayang: ci.is_published || false,
-                tanggalValidasiTayang: ci.is_published ? ci.updated_at : undefined,
-                hasilProdukFile: ci.file_url ? {
-                  name: ci.original_filename || "file",
-                  size: ci.file_size || 0,
-                  type: ci.mime_type || "application/octet-stream", 
-                  lastModified: new Date(ci.updated_at || ci.created_at).getTime(),
-                  url: ci.file_url
-                } : undefined,
-                hasilProdukLink: ci.file_url || "",
-              })) || []
-            }
-            return submission
-          })
-          
-          setSubmissions(transformedSubmissions)
-          
-          // Update cache
-          if (typeof window !== "undefined") {
-            localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
-          }
-          
-          showToastMessage("Data berhasil diperbarui dari server!", "success")
-          return
+        setSubmissions(transformedSubmissions)
+        
+        // Update cache
+        if (typeof window !== "undefined") {
+          localStorage.setItem("riwayat_cache", JSON.stringify(transformedSubmissions))
         }
+        
+        showToastMessage("Data berhasil diperbarui dari server!", "success")
+        return
       }
       
-      throw new Error("Server not available")
+      throw new Error("Invalid API response format")
       
     } catch (error) {
       console.error("❌ Failed to refresh from server:", error)
