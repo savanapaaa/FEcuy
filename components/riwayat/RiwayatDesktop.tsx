@@ -182,6 +182,9 @@ interface ContentItem {
   tanggalOrderMasuk: Date | undefined
   tanggalJadi: Date | undefined
   tanggalTayang: Date | undefined
+  deadline: Date | undefined
+  published_at: Date | undefined
+  buktiUpload?: FileData | string
   keterangan: string
   status?: "pending" | "approved" | "rejected"
   alasanPenolakan?: string
@@ -1650,11 +1653,11 @@ export default function RiwayatDesktop({ onEdit }: RiwayatDesktopProps) {
                               </div>
                               <div>
                                 <Label className="text-xs text-gray-500">Tanggal Jadi</Label>
-                                <p className="font-medium">{formatDate(item.tanggalJadi)}</p>
+                                <p className="font-medium">{formatDate(item.deadline)}</p>
                               </div>
                               <div>
                                 <Label className="text-xs text-gray-500">Tanggal Tayang</Label>
-                                <p className="font-medium">{formatDate(item.tanggalTayang)}</p>
+                                <p className="font-medium">{formatDate(item.published_at)}</p>
                               </div>
                             </div>
 

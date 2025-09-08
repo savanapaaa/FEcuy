@@ -52,7 +52,7 @@ import { submitReview, getCurrentUser } from "@/lib/api-client"
 const getWorkflowStage = (submission: any) => {
   if (!submission.isConfirmed) return "submitted"
 
-  const contentItems = submission.contentItems || []
+  const contentItems = submission.content_items || []
   if (contentItems.length === 0) return "review"
 
   const allReviewed = contentItems.every((item: any) => item.status === "approved" || item.status === "rejected")
@@ -70,20 +70,45 @@ const getWorkflowStage = (submission: any) => {
 
 interface Submission {
   id: number
-  noComtab: string
-  pin: string
-  tema: string
-  judul: string
-  jenisMedia: string
-  mediaPemerintah: string[]
-  mediaMassa: string[]
-  jenisKonten: string[]
-  tanggalOrder: Date | undefined
-  petugasPelaksana: string
-  supervisor: string
-  durasi: string
-  jumlahProduksi: string
-  tanggalSubmit: Date | undefined
+  noComtab?: string
+  pin?: string
+  tema?: string
+  judul?: string
+  title?: string
+  description?: string
+  type?: string
+  status?: string
+  workflow_stage?: string
+  is_confirmed?: boolean
+  priority?: string
+  assigned_reviewer?: any
+  assigned_validator?: any
+  submitted_at?: string
+  reviewed_at?: string
+  validated_at?: string
+  published_at?: string
+  completed_at?: string
+  deadline?: string
+  metadata?: {
+    tags?: string[]
+    category?: string
+    platform?: string[]
+    [key: string]: any
+  }
+  notes?: string
+  user?: any
+  attachments?: any[]
+  content_items?: any[]
+  jenisMedia?: string
+  mediaPemerintah?: string[]
+  mediaMassa?: string[]
+  jenisKonten?: string[]
+  tanggalOrder?: Date | undefined
+  petugasPelaksana?: string
+  supervisor?: string
+  durasi?: string
+  jumlahProduksi?: string
+  tanggalSubmit?: Date | undefined
   lastModified?: Date | undefined
   uploadedBuktiMengetahui?: any
   isConfirmed?: boolean
@@ -94,21 +119,46 @@ interface Submission {
 }
 
 interface ContentItem {
-  id: string
-  nama: string
-  jenisKonten: string
-  mediaPemerintah: string[]
-  mediaMassa: string[]
-  nomorSurat: string
-  narasiText: string
-  sourceNarasi: string[]
-  sourceAudioDubbing: string[]
-  sourceAudioBacksound: string[]
-  sourcePendukungLainnya: string[]
-  tanggalOrderMasuk: Date | undefined
-  tanggalJadi: Date | undefined
-  tanggalTayang: Date | undefined
-  keterangan: string
+  id: string | number
+  submission_id?: number
+  type?: string
+  title?: string
+  content?: string
+  file_path?: string
+  file_url?: string
+  original_filename?: string
+  mime_type?: string
+  file_size?: number
+  order_index?: number
+  is_published?: boolean
+  metadata?: any
+  reviewed_by?: any
+  reviewed_at?: string
+  review_status?: string
+  review_notes?: string
+  validation_assigned_to?: any
+  validated_by?: any
+  validation_assigned_at?: string
+  validated_at?: string
+  validation_status?: string
+  validation_notes?: string
+  publish_date?: string
+  published_content?: string
+  workflow_stage?: string
+  nama?: string
+  jenisKonten?: string
+  mediaPemerintah?: string[]
+  mediaMassa?: string[]
+  nomorSurat?: string
+  narasiText?: string
+  sourceNarasi?: string[]
+  sourceAudioDubbing?: string[]
+  sourceAudioBacksound?: string[]
+  sourcePendukungLainnya?: string[]
+  tanggalOrderMasuk?: Date | undefined
+  tanggalJadi?: Date | undefined
+  tanggalTayang?: Date | undefined
+  keterangan?: string
   status?: "pending" | "approved" | "rejected"
   alasanPenolakan?: string
   tanggalDiproses?: string
@@ -144,7 +194,7 @@ interface ContentReviewDialogProps {
 }
 
 // Helper functions
-const getContentTypeIcon = (type: string) => {
+const getContentTypeIcon = (type?: string) => {
   switch (type?.toLowerCase()) {
     case "video":
       return <PlayCircle className="h-5 w-5 text-red-500" />
@@ -402,8 +452,8 @@ const ReviewSummaryConfirmation = ({
               return (
                 <div key={item.id} className="flex items-center justify-between p-2 bg-white rounded border text-xs">
                   <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    {getContentTypeIcon(item.jenisKonten)}
-                    <span className="font-medium text-gray-900 truncate">{item.nama}</span>
+                    {getContentTypeIcon(item.jenisKonten || item.type)}
+                    <span className="font-medium text-gray-900 truncate">{item.title || item.nama || "Konten"}</span>
                   </div>
                   <Badge
                     className={cn(
@@ -541,8 +591,8 @@ const EnhancedConfirmationDialog = ({
                       <div className="space-y-1">
                         {approvedItems.map((item) => (
                           <div key={item.id} className="flex items-center space-x-2 text-xs">
-                            {getContentTypeIcon(item.jenisKonten)}
-                            <span className="font-medium text-gray-900 truncate">{item.nama}</span>
+                            {getContentTypeIcon(item.jenisKonten || item.type)}
+                            <span className="font-medium text-gray-900 truncate">{item.title || item.nama || "Konten"}</span>
                             <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
                           </div>
                         ))}
@@ -654,14 +704,14 @@ export default function ContentReviewDialog({
 
   if (!submission) return null
 
-  const contentItems = submission.contentItems?.filter((item) => !item.status || item.status === "pending") || []
+  const contentItems = submission.content_items?.filter((item) => !item.status || item.status === "pending") || []
   const currentItem = contentItem || contentItems[currentStep]
 
   console.log("🔍 ContentReviewDialog Debug:")
-  console.log("- Submission:", submission.judul)
-  console.log("- Total contentItems:", submission.contentItems?.length || 0)
+  console.log("- Submission:", submission.title || submission.judul)
+  console.log("- Total contentItems:", submission.content_items?.length || 0)
   console.log("- Pending contentItems:", contentItems.length)
-  console.log("- Content items:", submission.contentItems?.map(item => ({ nama: item.nama, status: item.status })))
+  console.log("- Content items:", submission.content_items?.map(item => ({ title: item.title, status: item.status })))
 
   if (!currentItem && contentItems.length === 0) {
     return (
@@ -822,7 +872,7 @@ export default function ContentReviewDialog({
     // Calculate review statistics for confirmation
     const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
     const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
-    const totalItems = submission.contentItems?.length || 0
+    const totalItems = submission.content_items?.length || 0
 
     console.log("📊 Review statistics:", { approvedCount, rejectedCount, totalItems })
     console.log("🔄 Showing SweetAlert confirmation dialog...")
@@ -961,7 +1011,7 @@ export default function ContentReviewDialog({
 
       const approvedCount = Object.values(reviewDecisions).filter((d) => d === "approved").length
       const rejectedCount = Object.values(reviewDecisions).filter((d) => d === "rejected").length
-      const totalItems = submission.contentItems?.length || 0
+      const totalItems = submission.content_items?.length || 0
 
       // Show success message with appropriate warning if using local fallback
       await Swal.fire({
@@ -1343,11 +1393,11 @@ export default function ContentReviewDialog({
                                       >
                                         <div className="flex items-center justify-between">
                                           <div className="flex items-center space-x-2">
-                                            {getContentTypeIcon(item.jenisKonten)}
+                                            {getContentTypeIcon(item.jenisKonten || item.type)}
                                             <div className="flex-1">
-                                              <p className="font-semibold text-gray-900 text-xs">{item.nama}</p>
+                                              <p className="font-semibold text-gray-900 text-xs">{item.title || item.nama || "Konten"}</p>
                                               <p className="text-xs text-gray-600 capitalize">
-                                                {item.jenisKonten?.replace("-", " ") || "Tidak diketahui"}
+                                                {(item.jenisKonten || item.type)?.replace("-", " ") || "Tidak diketahui"}
                                               </p>
                                             </div>
                                           </div>
@@ -1519,11 +1569,11 @@ export default function ContentReviewDialog({
                       <CardHeader className="border-b border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
-                            {getContentTypeIcon(reviewItem.jenisKonten)}
+                            {getContentTypeIcon(reviewItem.jenisKonten || reviewItem.type)}
                             <div>
-                              <CardTitle className="text-lg text-gray-900">{reviewItem.nama}</CardTitle>
+                              <CardTitle className="text-lg text-gray-900">{reviewItem.title || reviewItem.nama || "Konten"}</CardTitle>
                               <p className="text-sm text-gray-600 capitalize">
-                                {reviewItem.jenisKonten?.replace("-", " ") || "Tidak diketahui"}
+                                {(reviewItem.jenisKonten || reviewItem.type)?.replace("-", " ") || "Tidak diketahui"}
                               </p>
                             </div>
                           </div>
@@ -1561,14 +1611,14 @@ export default function ContentReviewDialog({
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Nomor Surat</Label>
                                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded-lg mt-1">
-                                    {reviewItem.nomorSurat || "Tidak ada"}
+                                    {submission.id || "Tidak ada"}
                                   </p>
                                 </div>
 
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Media Pemerintah</Label>
                                   <div className="flex flex-wrap gap-1 mt-1">
-                                    {reviewItem.mediaPemerintah?.map((media, index) => (
+                                    {submission.metadata?.platform?.map((media, index) => (
                                       <Badge key={index} className="bg-blue-100 text-blue-800 border-blue-200 text-xs">
                                         {getMediaIcon(media)}
                                         <span className="ml-1 capitalize">{media}</span>
@@ -1580,7 +1630,7 @@ export default function ContentReviewDialog({
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Media Massa</Label>
                                   <div className="flex flex-wrap gap-1 mt-1">
-                                    {reviewItem.mediaMassa?.map((media, index) => (
+                                    {submission.metadata?.platform?.map((media, index) => (
                                       <Badge
                                         key={index}
                                         className="bg-purple-100 text-purple-800 border-purple-200 text-xs"
@@ -1598,42 +1648,42 @@ export default function ContentReviewDialog({
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Tanggal Order Masuk</Label>
                                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded-lg mt-1">
-                                    {formatDate(reviewItem.tanggalOrderMasuk)}
+                                    {formatDate(submission.submitted_at)}
                                   </p>
                                 </div>
 
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Tanggal Jadi</Label>
                                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded-lg mt-1">
-                                    {formatDate(reviewItem.tanggalJadi)}
+                                    {formatDate(submission.reviewed_at)}
                                   </p>
                                 </div>
 
                                 <div>
                                   <Label className="text-sm font-semibold text-gray-700">Tanggal Tayang</Label>
                                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded-lg mt-1">
-                                    {formatDate(reviewItem.tanggalTayang)}
+                                    {formatDate(submission.published_at)}
                                   </p>
                                 </div>
                               </div>
                             </div>
 
                             {/* Narasi Text */}
-                            {reviewItem.narasiText && (
+                            {(reviewItem.content || submission.description) && (
                               <div>
                                 <Label className="text-sm font-semibold text-gray-700">Narasi</Label>
                                 <div className="bg-gray-50 p-4 rounded-lg mt-1 border">
-                                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{reviewItem.narasiText}</p>
+                                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{reviewItem.content || submission.description}</p>
                                 </div>
                               </div>
                             )}
 
                             {/* Keterangan */}
-                            {reviewItem.keterangan && (
+                            {submission.notes && (
                               <div>
                                 <Label className="text-sm font-semibold text-gray-700">Keterangan</Label>
                                 <div className="bg-gray-50 p-4 rounded-lg mt-1 border">
-                                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{reviewItem.keterangan}</p>
+                                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{submission.notes}</p>
                                 </div>
                               </div>
                             )}
@@ -1645,49 +1695,21 @@ export default function ContentReviewDialog({
                                 <h4 className="font-semibold text-gray-900 text-sm">File Sumber</h4>
 
                                 {/* Narasi Files */}
-                                {(reviewItem.sourceNarasi?.length > 0 ||
-                                  reviewItem.narasiFile ||
-                                  reviewItem.suratFile) && (
+                                {submission.attachments && submission.attachments.length > 0 && (
                                   <div>
                                     <Label className="text-xs font-medium text-gray-600">Narasi</Label>
                                     <div className="space-y-2 mt-1">
-                                      {reviewItem.narasiFile && (
+                                      {submission.attachments.map((attachment, index) => (
                                         <div
+                                          key={attachment.id}
                                           className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
-                                          onClick={() => handlePreviewFile(reviewItem.narasiFile, "File Narasi")}
+                                          onClick={() => handlePreviewFile(attachment.file_path, attachment.original_name)}
                                         >
                                           <div className="flex items-center space-x-2">
                                             <FileText className="h-4 w-4 text-blue-600" />
                                             <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.narasiFile)}
+                                              {attachment.original_name || attachment.file_name}
                                             </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-blue-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.suratFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
-                                          onClick={() => handlePreviewFile(reviewItem.suratFile, "File Surat")}
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <FileText className="h-4 w-4 text-blue-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.suratFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-blue-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.sourceNarasi?.map((source, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors"
-                                          onClick={() => handlePreviewFile(source, `Narasi ${index + 1}`)}
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <FileText className="h-4 w-4 text-blue-600" />
-                                            <span className="text-xs text-gray-900">{getFileDisplayName(source)}</span>
                                           </div>
                                           <Eye className="h-4 w-4 text-blue-600" />
                                         </div>
@@ -1696,242 +1718,32 @@ export default function ContentReviewDialog({
                                   </div>
                                 )}
 
-                                {/* Audio Dubbing Files */}
-                                {(reviewItem.sourceAudioDubbing?.length > 0 ||
-                                  reviewItem.audioDubbingFile ||
-                                  reviewItem.audioDubbingLainLainFile) && (
-                                  <div>
-                                    <Label className="text-xs font-medium text-gray-600">Audio Dubbing</Label>
-                                    <div className="space-y-2 mt-1">
-                                      {reviewItem.audioDubbingFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.audioDubbingFile, "Audio Dubbing")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <AudioWaveform className="h-4 w-4 text-purple-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.audioDubbingFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-purple-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.audioDubbingLainLainFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(
-                                              reviewItem.audioDubbingLainLainFile,
-                                              "Audio Dubbing Lain-lain",
-                                            )
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <AudioWaveform className="h-4 w-4 text-purple-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.audioDubbingLainLainFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-purple-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.sourceAudioDubbing?.map((source, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
-                                          onClick={() => handlePreviewFile(source, `Audio Dubbing ${index + 1}`)}
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <AudioWaveform className="h-4 w-4 text-purple-600" />
-                                            <span className="text-xs text-gray-900">{getFileDisplayName(source)}</span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-purple-600" />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Audio Backsound Files */}
-                                {(reviewItem.sourceAudioBacksound?.length > 0 ||
-                                  reviewItem.audioBacksoundFile ||
-                                  reviewItem.audioBacksoundLainLainFile) && (
-                                  <div>
-                                    <Label className="text-xs font-medium text-gray-600">Audio Backsound</Label>
-                                    <div className="space-y-2 mt-1">
-                                      {reviewItem.audioBacksoundFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.audioBacksoundFile, "Audio Backsound")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Mic className="h-4 w-4 text-green-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.audioBacksoundFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-green-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.audioBacksoundLainLainFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(
-                                              reviewItem.audioBacksoundLainLainFile,
-                                              "Audio Backsound Lain-lain",
-                                            )
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Mic className="h-4 w-4 text-green-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.audioBacksoundLainLainFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-green-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.sourceAudioBacksound?.map((source, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
-                                          onClick={() => handlePreviewFile(source, `Audio Backsound ${index + 1}`)}
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Mic className="h-4 w-4 text-green-600" />
-                                            <span className="text-xs text-gray-900">{getFileDisplayName(source)}</span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-green-600" />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
 
                               {/* Supporting Files and Result */}
                               <div className="space-y-4">
                                 <h4 className="font-semibold text-gray-900 text-sm">File Pendukung & Hasil</h4>
 
-                                {/* Supporting Files */}
-                                {(reviewItem.sourcePendukungLainnya?.length > 0 ||
-                                  reviewItem.pendukungVideoFile ||
-                                  reviewItem.pendukungFotoFile ||
-                                  reviewItem.pendukungLainLainFile) && (
+                                {/* All Files as Supporting Files */}
+                                {submission.attachments && submission.attachments.length > 0 && (
                                   <div>
                                     <Label className="text-xs font-medium text-gray-600">File Pendukung</Label>
                                     <div className="space-y-2 mt-1">
-                                      {reviewItem.pendukungVideoFile && (
+                                      {submission.attachments.map((attachment) => (
                                         <div
-                                          className="flex items-center justify-between p-2 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.pendukungVideoFile, "Video Pendukung")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Video className="h-4 w-4 text-red-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.pendukungVideoFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-red-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.pendukungFotoFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-orange-50 rounded-lg border border-orange-200 cursor-pointer hover:bg-orange-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.pendukungFotoFile, "Foto Pendukung")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <ImageIcon className="h-4 w-4 text-orange-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.pendukungFotoFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-orange-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.pendukungLainLainFile && (
-                                        <div
+                                          key={attachment.id}
                                           className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(
-                                              reviewItem.pendukungLainLainFile,
-                                              "File Pendukung Lainnya",
-                                            )
-                                          }
+                                          onClick={() => handlePreviewFile(attachment.file_path, attachment.original_name)}
                                         >
                                           <div className="flex items-center space-x-2">
                                             <Layers className="h-4 w-4 text-gray-600" />
                                             <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.pendukungLainLainFile)}
+                                              {attachment.original_name || attachment.file_name}
                                             </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-gray-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.sourcePendukungLainnya?.map((source, index) => (
-                                        <div
-                                          key={index}
-                                          className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
-                                          onClick={() => handlePreviewFile(source, `File Pendukung ${index + 1}`)}
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Layers className="h-4 w-4 text-gray-600" />
-                                            <span className="text-xs text-gray-900">{getFileDisplayName(source)}</span>
                                           </div>
                                           <Eye className="h-4 w-4 text-gray-600" />
                                         </div>
                                       ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Result Files */}
-                                {(reviewItem.hasilProdukFile || reviewItem.hasilProdukLink) && (
-                                  <div>
-                                    <Label className="text-xs font-medium text-gray-600">Hasil Produksi</Label>
-                                    <div className="space-y-2 mt-1">
-                                      {reviewItem.hasilProdukFile && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-indigo-50 rounded-lg border border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.hasilProdukFile, "Hasil Produksi")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Sparkles className="h-4 w-4 text-indigo-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.hasilProdukFile)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-indigo-600" />
-                                        </div>
-                                      )}
-                                      {reviewItem.hasilProdukLink && (
-                                        <div
-                                          className="flex items-center justify-between p-2 bg-indigo-50 rounded-lg border border-indigo-200 cursor-pointer hover:bg-indigo-100 transition-colors"
-                                          onClick={() =>
-                                            handlePreviewFile(reviewItem.hasilProdukLink, "Link Hasil Produksi")
-                                          }
-                                        >
-                                          <div className="flex items-center space-x-2">
-                                            <Globe className="h-4 w-4 text-indigo-600" />
-                                            <span className="text-xs text-gray-900">
-                                              {getFileDisplayName(reviewItem.hasilProdukLink)}
-                                            </span>
-                                          </div>
-                                          <Eye className="h-4 w-4 text-indigo-600" />
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 )}

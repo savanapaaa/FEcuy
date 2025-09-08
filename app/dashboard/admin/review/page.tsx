@@ -151,251 +151,8 @@ export default function ReviewPage() {
         setIsLoading(true)
         console.log("🔄 Loading reviews from API...")
 
-        // Add global function for debugging
-        if (typeof window !== "undefined") {
-          (window as any).addTestData = () => {
-            const testSubmissions = [
-              {
-                id: Date.now(),
-                noComtab: "20250808101530/IKP/08/2025",
-                pin: "1234",
-                tema: "Kesehatan",
-                judul: "Kampanye Hidup Sehat",
-                jenisMedia: "Digital",
-                mediaPemerintah: ["Website", "Instagram"],
-                mediaMassa: ["Kompas", "Detik"],
-                jenisKonten: ["video", "infografis"],
-                tanggalOrder: new Date("2025-08-05"),
-                petugasPelaksana: "John Doe",
-                supervisor: "Jane Smith",
-                durasi: "30 hari",
-                jumlahProduksi: "5 konten",
-                tanggalSubmit: new Date("2025-08-07"),
-                lastModified: new Date(),
-                isConfirmed: true,
-                workflowStage: "review",
-                contentItems: [
-                  {
-                    id: "content-1",
-                    nama: "Video Edukasi Hidup Sehat",
-                    jenisKonten: "video",
-                    mediaPemerintah: ["Instagram", "YouTube"],
-                    mediaMassa: ["TV One"],
-                    nomorSurat: "001/KEK/2025",
-                    narasiText: "Video edukasi tentang pola hidup sehat untuk masyarakat umum",
-                    sourceNarasi: ["text"],
-                    sourceAudioDubbing: ["file-audio"],
-                    sourceAudioBacksound: ["file-audio"],
-                    sourcePendukungLainnya: ["video"],
-                    tanggalOrderMasuk: new Date("2025-08-05"),
-                    tanggalJadi: new Date("2025-08-10"),
-                    tanggalTayang: new Date("2025-08-15"),
-                    keterangan: "Konten untuk kampanye kesehatan masyarakat",
-                    status: "pending"
-                  },
-                  {
-                    id: "content-2",
-                    nama: "Infografis Tips Gizi Seimbang",
-                    jenisKonten: "infografis",
-                    mediaPemerintah: ["Website", "Instagram"],
-                    mediaMassa: ["Kompas", "Republika"],
-                    nomorSurat: "002/KEK/2025",
-                    narasiText: "Infografis berisi tips dan panduan gizi seimbang",
-                    sourceNarasi: ["text", "file"],
-                    sourceAudioDubbing: [],
-                    sourceAudioBacksound: [],
-                    sourcePendukungLainnya: ["foto"],
-                    tanggalOrderMasuk: new Date("2025-08-05"),
-                    tanggalJadi: new Date("2025-08-12"),
-                    tanggalTayang: new Date("2025-08-16"),
-                    keterangan: "Infografis untuk edukasi gizi masyarakat",
-                    status: "pending"
-                  }
-                ]
-              },
-              {
-                id: Date.now() + 1,
-                noComtab: "20250808102030/IKP/08/2025",
-                pin: "5678",
-                tema: "Pendidikan",
-                judul: "Program Literasi Digital",
-                jenisMedia: "Digital & Cetak",
-                mediaPemerintah: ["Website", "Facebook", "Majalah"],
-                mediaMassa: ["Tempo", "CNN Indonesia"],
-                jenisKonten: ["video", "artikel", "poster"],
-                tanggalOrder: new Date("2025-08-06"),
-                petugasPelaksana: "Sarah Wilson",
-                supervisor: "Michael Brown",
-                durasi: "45 hari",
-                jumlahProduksi: "8 konten",
-                tanggalSubmit: new Date("2025-08-08"),
-                lastModified: new Date(),
-                isConfirmed: true,
-                workflowStage: "review",
-                contentItems: [
-                  {
-                    id: "content-3",
-                    nama: "Video Tutorial Literasi Digital",
-                    jenisKonten: "video",
-                    mediaPemerintah: ["YouTube", "Facebook"],
-                    mediaMassa: ["Metro TV"],
-                    nomorSurat: "003/EDU/2025",
-                    narasiText: "Video tutorial pembelajaran literasi digital untuk siswa",
-                    sourceNarasi: ["text", "surat"],
-                    sourceAudioDubbing: ["file-audio"],
-                    sourceAudioBacksound: ["file-audio"],
-                    sourcePendukungLainnya: ["video", "foto"],
-                    tanggalOrderMasuk: new Date("2025-08-06"),
-                    tanggalJadi: new Date("2025-08-20"),
-                    tanggalTayang: new Date("2025-08-25"),
-                    keterangan: "Video pembelajaran untuk siswa SD dan SMP",
-                    status: "pending"
-                  },
-                  {
-                    id: "content-4",
-                    nama: "Artikel Pentingnya Literasi Digital",
-                    jenisKonten: "artikel",
-                    mediaPemerintah: ["Website", "Majalah"],
-                    mediaMassa: ["Tempo", "Kompas"],
-                    nomorSurat: "004/EDU/2025",
-                    narasiText: "Artikel mengenai pentingnya literasi digital di era modern",
-                    sourceNarasi: ["text"],
-                    sourceAudioDubbing: [],
-                    sourceAudioBacksound: [],
-                    sourcePendukungLainnya: ["foto"],
-                    tanggalOrderMasuk: new Date("2025-08-06"),
-                    tanggalJadi: new Date("2025-08-18"),
-                    tanggalTayang: new Date("2025-08-22"),
-                    keterangan: "Artikel untuk publikasi media massa",
-                    status: "pending"
-                  }
-                ]
-              },
-              {
-                id: Date.now() + 2,
-                noComtab: "20250808103045/IKP/08/2025",
-                pin: "9012",
-                tema: "Ekonomi",
-                judul: "Sosialisasi UMKM Digital",
-                jenisMedia: "Digital",
-                mediaPemerintah: ["Instagram", "TikTok", "Website"],
-                mediaMassa: ["Bisnis Indonesia", "SWA"],
-                jenisKonten: ["video", "infografis", "carousel"],
-                tanggalOrder: new Date("2025-08-07"),
-                petugasPelaksana: "Ahmad Rizki",
-                supervisor: "Siti Nurhaliza",
-                durasi: "20 hari",
-                jumlahProduksi: "6 konten",
-                tanggalSubmit: new Date("2025-08-08"),
-                lastModified: new Date(),
-                isConfirmed: true,
-                workflowStage: "review",
-                contentItems: [
-                  {
-                    id: "content-5",
-                    nama: "Video Profil UMKM Sukses",
-                    jenisKonten: "video",
-                    mediaPemerintah: ["Instagram", "TikTok"],
-                    mediaMassa: ["Bisnis Indonesia"],
-                    nomorSurat: "005/ECO/2025",
-                    narasiText: "Video profil UMKM yang berhasil go digital",
-                    sourceNarasi: ["text"],
-                    sourceAudioDubbing: ["file-audio"],
-                    sourceAudioBacksound: ["file-audio"],
-                    sourcePendukungLainnya: ["video", "foto"],
-                    tanggalOrderMasuk: new Date("2025-08-07"),
-                    tanggalJadi: new Date("2025-08-27"),
-                    tanggalTayang: new Date("2025-08-30"),
-                    keterangan: "Video inspiratif untuk UMKM lainnya",
-                    status: "pending"
-                  }
-                ]
-              }
-            ]
-            
-            localStorage.setItem("submissions", JSON.stringify(testSubmissions))
-            console.log("✅ Test data added! Reload the page.")
-            window.location.reload()
-          }
-          
-          (window as any).addMoreTestData = () => {
-            const existingData = JSON.parse(localStorage.getItem("submissions") || "[]")
-            const additionalSubmissions = [
-              {
-                id: Date.now() + 10,
-                noComtab: "20250808104500/IKP/08/2025",
-                pin: "3456",
-                tema: "Lingkungan",
-                judul: "Kampanye Go Green",
-                jenisMedia: "Digital & Konvensional",
-                mediaPemerintah: ["Instagram", "Facebook", "Radio"],
-                mediaMassa: ["Antara", "Kontan"],
-                jenisKonten: ["video", "audio", "poster"],
-                tanggalOrder: new Date("2025-08-07"),
-                petugasPelaksana: "Eko Prasetyo",
-                supervisor: "Dewi Sartika",
-                durasi: "25 hari",
-                jumlahProduksi: "4 konten",
-                tanggalSubmit: new Date("2025-08-08"),
-                lastModified: new Date(),
-                isConfirmed: true,
-                workflowStage: "review",
-                contentItems: [
-                  {
-                    id: "content-env-1",
-                    nama: "Video Edukasi Reduce Reuse Recycle",
-                    jenisKonten: "video",
-                    mediaPemerintah: ["Instagram", "YouTube"],
-                    mediaMassa: ["Antara"],
-                    nomorSurat: "006/ENV/2025",
-                    narasiText: "Video edukasi tentang pengelolaan sampah dengan konsep 3R",
-                    sourceNarasi: ["text", "file"],
-                    sourceAudioDubbing: ["file-audio"],
-                    sourceAudioBacksound: ["file-audio"],
-                    sourcePendukungLainnya: ["video", "foto"],
-                    tanggalOrderMasuk: new Date("2025-08-07"),
-                    tanggalJadi: new Date("2025-09-01"),
-                    tanggalTayang: new Date("2025-09-05"),
-                    keterangan: "Video untuk kampanye lingkungan hidup",
-                    status: "pending"
-                  },
-                  {
-                    id: "content-env-2",
-                    nama: "Audio Spot Radio Lingkungan",
-                    jenisKonten: "audio",
-                    mediaPemerintah: ["Radio"],
-                    mediaMassa: ["Radio Elshinta"],
-                    nomorSurat: "007/ENV/2025",
-                    narasiText: "Audio spot 30 detik tentang kebersihan lingkungan",
-                    sourceNarasi: ["text"],
-                    sourceAudioDubbing: ["file-audio"],
-                    sourceAudioBacksound: ["file-audio"],
-                    sourcePendukungLainnya: [],
-                    tanggalOrderMasuk: new Date("2025-08-07"),
-                    tanggalJadi: new Date("2025-08-28"),
-                    tanggalTayang: new Date("2025-09-02"),
-                    keterangan: "Audio untuk siaran radio",
-                    status: "pending"
-                  }
-                ]
-              }
-            ]
-            
-            const combined = [...existingData, ...additionalSubmissions]
-            localStorage.setItem("submissions", JSON.stringify(combined))
-            console.log("✅ Additional test data added! Reload the page.")
-            window.location.reload()
-          }
-          
-          (window as any).clearTestData = () => {
-            localStorage.removeItem("submissions")
-            console.log("🗑️ Test data cleared! Reload the page.")
-            window.location.reload()
-          }
-        }
-
-        // Try to load from API first
-        const response = await getReviews()
+        // Load reviews from API
+        const response = await getReviews({ workflow_stage: 'review' })
         console.log("Reviews response:", response)
 
         if (response.success && response.data) {
@@ -499,62 +256,12 @@ export default function ReviewPage() {
           console.log("📋 Final review submissions:", reviewSubmissions)
           setSubmissions(reviewSubmissions)
         } else {
-          throw new Error("API not available")
+          console.error("Failed to load reviews from API:", response.error)
+          setSubmissions([])
         }
       } catch (error) {
-        console.error("Error loading from API, falling back to localStorage:", error)
-
-        // Fallback to localStorage
-        if (typeof window !== "undefined") {
-          const stored = localStorage.getItem("submissions")
-          if (stored) {
-            const parsedSubmissions = JSON.parse(stored)
-            console.log("📊 Total submissions in localStorage:", parsedSubmissions.length)
-            
-            // Debug each submission
-            parsedSubmissions.forEach((sub: any, index: number) => {
-              console.log(`🔍 Submission ${index + 1}: ${sub.judul}`)
-              console.log(`   - isConfirmed: ${sub.isConfirmed}`)
-              console.log(`   - workflowStage: ${sub.workflowStage}`)
-              console.log(`   - contentItems: ${sub.contentItems?.length || 0}`)
-            })
-            
-            // Filter submissions that need review:
-            // 1. Must be confirmed (submitted)
-            // 2. Must have workflowStage as "review"
-            // 3. Must have content items that are pending review OR no content items yet
-            const reviewSubmissions = parsedSubmissions.filter((sub: any) => {
-              // Must be confirmed/submitted
-              if (!sub.isConfirmed) {
-                console.log(`❌ ${sub.judul}: Not confirmed (isConfirmed: ${sub.isConfirmed})`)
-                return false
-              }
-              
-              // Check workflow stage - should be "review"
-              if (sub.workflowStage !== "review") {
-                console.log(`❌ ${sub.judul}: Wrong stage (${sub.workflowStage})`)
-                return false
-              }
-              
-              // If no content items, it needs review setup
-              const contentItems = sub.contentItems || []
-              if (contentItems.length === 0) {
-                console.log(`✅ ${sub.judul}: No content items, needs review`)
-                return true
-              }
-              
-              // Check if any content items are still pending review
-              const hasPendingItems = contentItems.some(
-                (item: any) => !item.status || item.status === "pending",
-              )
-              console.log(`${hasPendingItems ? '✅' : '❌'} ${sub.judul}: Has pending items: ${hasPendingItems}`)
-              return hasPendingItems
-            })
-            
-            console.log("📋 Submissions filtered for review:", reviewSubmissions.length)
-            setSubmissions(reviewSubmissions)
-          }
-        }
+        console.error("Error loading reviews from API:", error)
+        setSubmissions([])
       } finally {
         setIsLoading(false)
       }
@@ -629,7 +336,7 @@ export default function ReviewPage() {
           // Only send review if all items have been reviewed
           if (pendingItems.length === 0 && contentItems.length > 0) {
             // Determine overall status: if any approved, status is approved; if all rejected, status is rejected
-            const overallStatus = approvedItems.length > 0 ? 'approved' : 'rejected'
+            const overallStatus: "approved" | "rejected" = approvedItems.length > 0 ? 'approved' : 'rejected'
             
             const reviewData = {
               status: overallStatus,
@@ -637,7 +344,7 @@ export default function ReviewPage() {
               reviewerId: 'current-user-id', // TODO: Get from auth context
               contentItems: contentItems.map(item => ({
                 id: item.id,
-                status: item.status,
+                status: item.status || "pending",
                 notes: item.alasanPenolakan || '',
                 processedAt: new Date().toISOString()
               }))
@@ -663,23 +370,90 @@ export default function ReviewPage() {
         }
       }
 
-      // Update localStorage cache
-      if (typeof window !== "undefined") {
-        localStorage.setItem("submissions", JSON.stringify(submissionsWithStages))
+      // Reload fresh data from API after successful reviews
+      try {
+        const response = await getReviews({ workflow_stage: 'review' })
+        if (response.success && response.data) {
+          const responseData = response.data as any
+          const apiData = responseData.data || responseData
+          
+          const reviewItems = apiData.map((submission: any) => {
+            const reviewItem: Submission = {
+              id: submission.id,
+              noComtab: submission.no_comtab || `COM-${submission.id}`,
+              pin: submission.pin || "0000", 
+              tema: submission.theme || submission.tema || "Tidak ada tema",
+              judul: submission.title || submission.judul || "Tidak ada judul",
+              jenisMedia: submission.media_type || submission.jenisMedia || "Digital",
+              mediaPemerintah: submission.media_pemerintah || submission.mediaPemerintah || [],
+              mediaMassa: submission.media_massa || submission.mediaMassa || [],
+              jenisKonten: submission.content_type || submission.jenisKonten || [submission.type || "content_creation"],
+              tanggalOrder: submission.created_at ? new Date(submission.created_at) : undefined,
+              petugasPelaksana: submission.user?.name || submission.petugasPelaksana || "Unknown",
+              supervisor: submission.supervisor || "Unknown",
+              durasi: submission.durasi || "30 hari",
+              jumlahProduksi: submission.jumlahProduksi || "1 konten", 
+              tanggalSubmit: submission.submitted_at ? new Date(submission.submitted_at) : new Date(submission.created_at),
+              lastModified: submission.updated_at ? new Date(submission.updated_at) : new Date(),
+              uploadedBuktiMengetahui: submission.uploadedBuktiMengetahui,
+              isConfirmed: submission.status === "submitted" || submission.workflow_stage === "review",
+              tanggalKonfirmasi: submission.submitted_at || submission.created_at,
+              contentItems: submission.content_items ? submission.content_items.map((item: any) => ({
+                id: item.id?.toString() || Math.random().toString(),
+                nama: submission.title || submission.description || "Konten Review",
+                jenisKonten: item.type || "text",
+                mediaPemerintah: [],
+                mediaMassa: [],
+                nomorSurat: "",
+                narasiText: item.content || submission.description || "",
+                sourceNarasi: ["text"],
+                sourceAudioDubbing: [],
+                sourceAudioBacksound: [],
+                sourcePendukungLainnya: [],
+                tanggalOrderMasuk: submission.created_at ? new Date(submission.created_at) : new Date(),
+                tanggalJadi: undefined,
+                tanggalTayang: undefined,
+                keterangan: submission.notes || "",
+                status: "pending" as "pending" | "approved" | "rejected"
+              })) : [
+                {
+                  id: `content-${submission.id}`,
+                  nama: submission.title || submission.description || "Konten Review",
+                  jenisKonten: submission.type || "content_creation",
+                  mediaPemerintah: [],
+                  mediaMassa: [],
+                  nomorSurat: "",
+                  narasiText: submission.description || "",
+                  sourceNarasi: ["text"],
+                  sourceAudioDubbing: [],
+                  sourceAudioBacksound: [],
+                  sourcePendukungLainnya: [],
+                  tanggalOrderMasuk: submission.created_at ? new Date(submission.created_at) : new Date(),
+                  tanggalJadi: undefined,
+                  tanggalTayang: undefined,
+                  keterangan: submission.notes || "",
+                  status: "pending" as "pending" | "approved" | "rejected"
+                }
+              ],
+              buktiMengetahui: submission.buktiMengetahui,
+              dokumenPendukung: submission.attachments || [],
+              workflowStage: submission.workflow_stage === "review" ? "review" : "submitted",
+              tanggalReview: submission.reviewed_at,
+            }
+            return reviewItem
+          })
+
+          const reviewSubmissions = reviewItems.filter((sub: Submission) => {
+            if (!sub.isConfirmed) return false
+            if (sub.workflowStage !== "review") return false
+            return true
+          })
+
+          setSubmissions(reviewSubmissions)
+        }
+      } catch (error) {
+        console.error("Error reloading data after review:", error)
       }
-
-      // Filter only submissions that still need review
-      const reviewSubmissions = submissionsWithStages.filter((sub: Submission) => {
-        if (!sub.isConfirmed) return false
-        if (sub.workflowStage && sub.workflowStage !== "review") return false
-        const contentItems = sub.contentItems || []
-        if (contentItems.length === 0) return true
-        // Check if any content items are still pending review
-        // const hasPendingItems = contentItems.some((item: ContentItem) => !item.status || item.status === "pending")
-        // return hasPendingItems
-      })
-
-      setSubmissions(reviewSubmissions)
 
       // Show success message
       toast({
